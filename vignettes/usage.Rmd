@@ -1,0 +1,71 @@
+---
+title: "usage"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{usage}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This vignette provides a brief overview of the typical usage of the **micnorm** package. This package is designed to normalize students' attendance and activity points in Microeconomics\ 101 at Faculty of Economics, Masaryk University.
+
+Note: As the package uses personal API keys, the code can't be run in the vignette.
+
+
+
+## Installation
+
+You may install the package only from github:
+
+```{r install, eval = FALSE}
+devtools::install_github("mkvasnicka/micnorm", build_vignettes = TRUE)
+```
+
+
+
+## Loading and credentials
+
+After installation, you may load the package (and other useful packages):
+
+```{r setup, message = FALSE, warning = FALSE}
+library(micnorm)
+```
+
+```{r, echo = FALSE}
+# whether to evaluate the code
+EVAL <- FALSE
+```
+
+First of all, you need to create a credentials object. This object contains your key, faculty, and course. You may create it using the `credentials()` function.
+
+First, you must go to MU IS\ > Teacher's Notebook\ > Notebooks > Povolení API. There you must create a new API key. You have to set the date when the API key is valid and connect it to IP address of your computer. You may lean your IP address on web (e.g., <https://www.myip.com/>) or using the Linux `ifconfig` command in the command line. 
+
+Then you can create the credentials object. You supply the API key, your faculty number (seen in the URL of your Teacher's Notebook), and the course code. Here I create credentials for two linked courses:
+
+```{r, eval = EVAL}
+micro <- credentials(
+  key = "Z6o4VCwTOPPYGWI9",
+  faculty = 1456,
+  course = "BPE_MIE1"
+)
+mivs <- credentials(
+  key = "T_EVbceQ0fdFaulj",
+  faculty = 1456,
+  course = "MPE_MIVS"
+)
+```
+
+## Usage
+
+```{r setup}
+normalize_micro(micro, mivs)
+```
+
+See help for other parameters.
