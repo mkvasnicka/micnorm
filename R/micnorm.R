@@ -342,3 +342,100 @@ get_renegades <- function(...) {
     }
   )
 }
+
+
+
+# writing data ----------------------------------------------------------------
+
+#' Create normalization notebooks.
+#'
+#' `safely_create_normalized_block()` creates notebooks for normalized points
+#' for several courses if they don't exist.
+#'
+#' @param name (string) full name of the notebook
+#' @param shortcut (string) shortcut name of the notebook
+#' @param ... credentials
+#'
+#' @return none, it only creates the blocks in IS
+safely_create_normalized_block <- function(name, shortcut, ...) {
+  creds <- list(...)
+  logging::loginfo(
+    "Creating normalization block for %s courses.",
+    length(creds)
+  )
+  purrr::walk(
+    creds,
+    function(c) {
+      if (!MUIS::notebook_exists(c, shortcut)) {
+        logging::loginfo("... creating block for %s.", c$course)
+        tryCatch(
+          MUIS::create_notebook(c, name, shortcut, initialize = FALSE),
+          error = function(e) {
+            no_of_errors <<- no_of_errors + 1
+            logging::logerror(e)
+          }
+        )
+      }
+    }
+  )
+}
+
+
+#' Writes normalized points to IS.
+#'
+#' `write_data_to_is()` writes students' normalized points to normalization
+#' blocks in IS for several courses.
+#'
+#' @param students ... a tibble with points
+#' @param norm_block ... shortcut name of the block
+#' @param ... credentials
+#'
+#' @return none, it only writes the data to the blocks in IS
+write_data_to_is <- function(students, norm_block, ...) {
+  creds <- list(...)
+  logging::loginfo(
+    "Trying to write normalized points for %s courses to IS.",
+    length(creds)
+  )
+  purrr::walk(
+    creds,
+    function(c) {
+      tryCatch(
+        {
+          logging::loginfo("... writing course %s.", c$course)
+          s <- students |>
+            dplyr::filter(course == c$course) |>
+            dplyr::select(uco = student_uco, value = full_string)
+          MUIS::write_notebook(c, norm_block, s)
+        },
+        error = function(e) {
+          logging::logerror(e)
+          no_of_errors <<- no_of_errors + 1
+        }
+      )
+    }
+  )
+}
+
+
+
+# point normalization -----------------------------------------------------
+
+# normalize points
+normalize_points <- function(
+    ucos,
+    raw_points,
+    renegades,
+    a = 20,
+    b = 120,
+    max_points = 24) {
+  valid <- !(ucos %in% renegades)
+  mean_points <- mean(raw_points[valid])
+  sd_points <- sd(raw_points[valid])
+  c1 <- (a + b) / 2
+  c2 <- (b - a) / (4 * sd_points)
+  norm_points <- (c1 + c2 * (raw_points - mean_points))
+  norm_points <- pmin(norm_points, 100)
+  norm_points <- pmax(norm_points, 0)
+  round(norm_points * max_points / 100)
+}
