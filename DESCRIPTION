@@ -16,6 +16,7 @@ Imports:
     mailR (>= 0.8),
     MUIS (>= 0.0.0.9000),
     purrr (>= 1.0.2),
-    readr (>= 2.1.4)
+    readr (>= 2.1.4),
+    tibble (>= 3.2.1)
 Remotes: 
     mkvasnicka/MUIS

@@ -1,8 +1,19 @@
+# errors and warnings logging -------------------------------------------------
+
 no_of_errors <- 0
+no_of_warnings <- 0
 
 
 
-# mailing -----------------------------------------------------------------
+# credentials -----------------------------------------------------------------
+
+#' @export 
+#' @importFrom MUIS credentials
+MUIS::credentials
+
+
+
+# mailing ---------------------------------------------------------------------
 
 #' Send email
 #'
@@ -23,24 +34,24 @@ send_mail <- function(
     body,
     sender = "847@muni.cz",
     recipients = sender) {
-    logging::loginfo("Sending the mail.")
-    try({
-        email <- mailR::send.mail(
-            from = sender,
-            to = recipients,
-            subject = subject,
-            body = body,
-            smtp = list(host.name = "relay.muni.cz", port = 25),
-            authenticate = FALSE,
-            send = FALSE
-        )
-        email$send()
-    })
+  logging::loginfo("Sending the mail.")
+  try({
+    email <- mailR::send.mail(
+      from = sender,
+      to = recipients,
+      subject = subject,
+      body = body,
+      smtp = list(host.name = "relay.muni.cz", port = 25),
+      authenticate = FALSE,
+      send = FALSE
+    )
+    email$send()
+  })
 }
 
 
 
-# getting data ------------------------------------------------------------
+# students and teachers -------------------------------------------------------
 
 #' Get list of all students.
 #'
@@ -63,43 +74,43 @@ send_mail <- function(
 #' students <- get_all_students(micprez, mivs)
 #' }
 get_all_students <- function(...) {
-    creds <- list(...)
-    logging::loginfo(
-        "Trying to download list of students in seminars in %s courses.",
-        length(creds)
-    )
-    tryCatch(
-        {
-            purrr::map(creds, function(c) {
-                logging::loginfo(
-                    "... downloading students in course %s.",
-                    c$course
-                )
-                tryCatch(
-                    MUIS::get_seminar_students(c),
-                    error = function(e) {
-                        logging::logerror(e)
-                        no_of_errors <<- no_of_errors + 1
-                        NULL
-                    }
-                )
-            }) |>
-                dplyr::bind_rows() |>
-                dplyr::select(
-                    course,
-                    seminar,
-                    student_uco = uco,
-                    student_last_name = last_name,
-                    student_first_name = first_name,
-                    credentials = credentials
-                )
-        },
-        error = function(e) {
+  creds <- list(...)
+  logging::loginfo(
+    "Trying to download list of students in seminars in %s courses.",
+    length(creds)
+  )
+  tryCatch(
+    {
+      purrr::map(creds, function(c) {
+        logging::loginfo(
+          "... downloading students in course %s.",
+          c$course
+        )
+        tryCatch(
+          MUIS::get_seminar_students(c),
+          error = function(e) {
             logging::logerror(e)
             no_of_errors <<- no_of_errors + 1
             NULL
-        }
-    )
+          }
+        )
+      }) |>
+        dplyr::bind_rows() |>
+        dplyr::select(
+          course,
+          seminar,
+          student_uco = uco,
+          student_last_name = last_name,
+          student_first_name = first_name,
+          credentials = credentials
+        )
+    },
+    error = function(e) {
+      logging::logerror(e)
+      no_of_errors <<- no_of_errors + 1
+      NULL
+    }
+  )
 }
 
 
@@ -122,42 +133,48 @@ get_all_students <- function(...) {
 #' teachers <- get_all_teachers(micprez, mivs)
 #' }
 get_all_teachers <- function(...) {
-    creds <- list(...)
-    logging::loginfo(
-        "Trying to download list of all teachers in %s courses.",
-        length(creds)
-    )
-    tryCatch(
-        {
-            purrr::map(creds, function(c) {
-                logging::loginfo("... downloadint teachers in course %s.", c$course)
-                tryCatch(
-                    MUIS::get_teachers(c),
-                    error = function(e) {
-                        logging::logerror(e)
-                        no_of_errors <<- no_of_errors + 1
-                        NULL
-                    }
-                )
-            }) |>
-                dplyr::bind_rows() |>
-                dplyr::select(
-                    course,
-                    seminar,
-                    teacher_uco = uco,
-                    teacher_last_name = last_name,
-                    teacher_first_name = first_name,
-                    credentials = credentials
-                )
-        },
-        error = function(e) {
+  creds <- list(...)
+  logging::loginfo(
+    "Trying to download list of all teachers in %s courses.",
+    length(creds)
+  )
+  tryCatch(
+    {
+      purrr::map(creds, function(c) {
+        logging::loginfo(
+          "... downloading teachers in course %s.",
+          c$course
+        )
+        tryCatch(
+          MUIS::get_teachers(c),
+          error = function(e) {
             logging::logerror(e)
             no_of_errors <<- no_of_errors + 1
             NULL
-        }
-    )
+          }
+        )
+      }) |>
+        dplyr::bind_rows() |>
+        dplyr::select(
+          course,
+          seminar,
+          teacher_uco = uco,
+          teacher_last_name = last_name,
+          teacher_first_name = first_name,
+          credentials = credentials
+        )
+    },
+    error = function(e) {
+      logging::logerror(e)
+      no_of_errors <<- no_of_errors + 1
+      NULL
+    }
+  )
 }
 
+
+
+# seminar points --------------------------------------------------------------
 
 #' Get list of all seminar points notebooks.
 #' 
@@ -178,32 +195,150 @@ get_all_teachers <- function(...) {
 #' blocks <- get_names_of_all_existings_blocks(micprez, mivs)
 #' }
 get_names_of_all_existings_blocks <- function(...) {
-    creds <- list(...)
-    logging::loginfo(
-        "Trying to download names of all existing blocks in %s courses.",
-        length(creds)
-    )
-    tryCatch(
-        {
-            purrr::map(creds, function(c) {
-                logging::loginfo("... downloadint names of blocks in course %s.", c$course)
-                tryCatch(
-                    MUIS::list_notebooks(c),
-                    error = function(e) {
-                        logging::logerror(e)
-                        no_of_errors <<- no_of_errors + 1
-                        NULL
-                    }
-                )
-            }) |>
-                dplyr::bind_rows() |>
-                dplyr::filter(stringr::str_detect(shortcut, "^bodysemin\\d{2}")) |>
-                dplyr::arrange(shortcut, course)
-        },
-        error = function(e) {
+  creds <- list(...)
+  logging::loginfo(
+    "Trying to download names of all existing blocks in %s courses.",
+    length(creds)
+  )
+  tryCatch(
+    {
+      purrr::map(creds, function(c) {
+        logging::loginfo(
+          "... downloadint names of blocks in course %s.",
+          c$course
+        )
+        tryCatch(
+          MUIS::list_notebooks(c),
+          error = function(e) {
             logging::logerror(e)
             no_of_errors <<- no_of_errors + 1
             NULL
+          }
+        )
+      }) |>
+        dplyr::bind_rows() |>
+        dplyr::filter(stringr::str_detect(shortcut, "^bodysemin\\d{2}")) |>
+        dplyr::arrange(shortcut, course)
+    },
+    error = function(e) {
+      logging::logerror(e)
+      no_of_errors <<- no_of_errors + 1
+      NULL
+    }
+  )
+}
+
+
+#' Read studnets' points from seminar notebooks.
+#' `read_points_from_blocks()` reads all blocks found by
+#' get_names_of_all_existings_blocks() and returns students' points stored there
+#'
+#' @param blocks a tibble returned by `get_names_of_all_existings_blocks()`
+#'
+#' @return a tibble with columns:
+#' - uco,
+#' - points,
+#' - course, and
+#' - block
+read_points_from_blocks <- function(blocks) {
+  logging::loginfo(
+    "Trying to download points in %s blocks.",
+    nrow(blocks)
+  )
+  tryCatch(
+    {
+      purrr::map2(
+        blocks$credentials,
+        blocks$shortcut,
+        function(cred, shortcut) {
+          logging::loginfo(
+            "... downloading block %s in course %s.",
+            shortcut, cred$course
+          )
+          MUIS::read_notebook(cred, shortcut)
         }
-    )
+      ) |>
+        dplyr::bind_rows()
+    },
+    error = function(e) {
+      logging::logerror(e)
+      no_of_errors <<- no_of_errors + 1
+      NULL
+    }
+  )
+}
+
+
+# renegades -------------------------------------------------------------------
+
+#' Get list of students that stopped studying.
+#'
+#' `get_renegades()` downloads names of all renegades (i.e. students that
+#' stopped working within several courses.
+#'
+#' @param `...` credentials; separated by commas
+#'
+#' @return an integer vectors including UCOs of all renegades
+#'
+#' @details it is protected against errors; it logs
+#'
+#' @examples \dontrun{
+#' renegades <- get_renegades(micprez, mivs)
+#' }
+get_renegades <- function(...) {
+  empty <- tibble::tibble(uco = integer(0), content = character(0))
+  creds <- list(...)
+  logging::loginfo(
+    "Trying to download the list of renegades in %s courses.",
+    length(creds)
+  )
+  tryCatch(
+    {
+      renegades <- purrr::map(creds, function(c) {
+        logging::loginfo(
+          "... downloading list of renegades in course %s.",
+          c$course
+        )
+        tryCatch(
+          {
+            if (MUIS::notebook_exists(c, "renegades")) {
+              MUIS::read_notebook(c, "renegades")
+            } else {
+              logging::logwarn(
+                "... the block 'renegades' does not exist for course %s.",
+                c$course
+              )
+              no_of_warnings <<- no_of_warnings + 1
+              empty
+            }
+          },
+          error = function(e) {
+            logging::logerror(e)
+            no_of_errors <<- no_of_errors + 1
+            empty
+          }
+        )
+      }) |>
+        dplyr::bind_rows() |>
+        dplyr::mutate(content = stringr::str_trim(content))
+      strange <- renegades |>
+        dplyr::filter(stringr::str_detect(content, "^[Xx]$", negate = TRUE)) |>
+        dplyr::pull(uco)
+      if (length(strange) > 0) {
+        logging::logwarn(
+          "... strange renegade coding for UCOs %s.",
+          stringr::str_c(strange, collapse = ", ")
+        )
+        no_of_warnings <<- no_of_warnings + 1
+      }
+      renegades |>
+        dplyr::filter(stringr::str_detect(content, "^[Xx]$")) |>
+        dplyr::pull(uco)
+    },
+    error = function(e) {
+      logging::logerror(e)
+      no_of_errors <<- no_of_errors + 1
+      integer(0)
+    }
+  )
 }
