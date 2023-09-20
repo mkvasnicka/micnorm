@@ -2,7 +2,7 @@
 % Please edit documentation in R/micnorm.R
 \name{send_mail}
 \alias{send_mail}
-\title{Send email}
+\title{Send email.}
 \usage{
 send_mail(subject, body, sender = "847@muni.cz", recipients = sender)
 }

@@ -15,7 +15,7 @@ MUIS::credentials
 
 # mailing ---------------------------------------------------------------------
 
-#' Send email
+#' Send email.
 #'
 #' `send_mail()` sends an mail from my school mail account to my school mail
 #' account
@@ -47,6 +47,21 @@ send_mail <- function(
     )
     email$send()
   })
+}
+
+
+#' Create email from log and send it.
+#' 
+#' @return none -- it only sends the mail
+create_and_send_mail <- function() {
+  mail_subject <- ifelse(no_of_errors == 0,
+    "Mikro: Seminar points normalization -- everything is o.k.",
+    "Mikro: BEWARE: Seminar points normalization failed!"
+  )
+  send_mail(
+    subject = mail_subject,
+    body = stringr::str_c(mail_subject, "\n\n\n", readr::read_file(log_file))
+  )
 }
 
 
@@ -398,6 +413,19 @@ get_renegades <- function(...) {
 
 
 
+# attendance ------------------------------------------------------------------
+
+#' Get attendance in several courses.
+#' 
+#' @param ... credentials separated by commas
+get_attendance <- function(...) {
+  creds <- list(...)
+  purrr::map(creds, MUIS::read_all_presence_points) |>
+    dplyr::bind_rows() |>
+    dplyr::rename(student_uco = uco)
+}
+
+
 # writing data ----------------------------------------------------------------
 
 #' Create normalization notebooks.
@@ -476,6 +504,24 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
 
 
 
+# point augmentation ----------------------------------------------------------
+
+augment_points <- function(students) {
+  students |>
+    dplyr::mutate(
+      activity_points_augmented = activity_points * no_of_seminars /
+        (no_of_seminars - excused),
+      activity_points_augmented = dplyr::if_else(
+        is.nan(activity_points_augmented),
+        activity_points,
+        activity_points_augmented
+      ),
+      raw_points = attendance_points + activity_points_augmented
+    )
+}
+
+
+
 # point normalization -----------------------------------------------------
 
 # normalize points
@@ -483,9 +529,9 @@ normalize_points_in_one_group <- function(
     ucos,
     raw_points,
     renegades,
-    a = 20,
-    b = 120,
-    max_points = 24) {
+    a,
+    b,
+    max_points) {
   valid <- !(ucos %in% renegades)
   mean_points <- mean(raw_points[valid])
   sd_points <- stats::sd(raw_points[valid])
@@ -497,27 +543,83 @@ normalize_points_in_one_group <- function(
   round(norm_points * max_points / 100)
 }
 
-normalize_points <- function(students) {
+
+normalize_points <- function(
+    students,
+    max_points_activity,
+    activity_const_a,
+    activity_const_b) {
   students |>
     dplyr::group_by(teacher_uco) |>
-    dplyr::mutate(norm_points = normalize_points_in_one_group(
-      student_uco, raw_points,
-      renegades
-    )) |>
+    dplyr::mutate(
+      norm_points = normalize_points_in_one_group(
+        student_uco,
+        raw_points,
+        renegades,
+        a = activity_const_a,
+        b = activity_const_b,
+        max_points = max_points_activity
+      )
+    ) |>
     dplyr::ungroup()
+}
+
+
+
+# output string ---------------------------------------------------------------
+
+add_output_string <- function(students) {
+  dplyr::mutate(full_string = stringr::str_c(
+    "Body za účast: ", attendance_points,
+    " (omluveno: ", excused, ")\n",
+    "(účast: ", attendance_string, ")\n\n",
+    "Body za aktivitu: ", round(activity_points, 1), "\n",
+    "(body: ", activity_string, ")\n\n",
+    "Hrubé body za účast a aktivitu: ", round(raw_points, 1), "\n",
+    "Normované body za účast a aktivitu: *", norm_points
+  ))
 }
 
 
 
 # main function ---------------------------------------------------------------
 
+#' Read IS notebooks, normalize students' points, and write it back to IS.
+#'
+#' @param `...` credentials separated by commas
+#' @param no_of_seminars (optional, integer) number of seminars in the given
+#'   year; implicit value is 12L
+#' @param max_points_attendance (optional, number) maximum normalized points
+#'   for attendance; implicit value is 6
+#' @param max_points_activity (optional, number) maximum normalized points
+#'   for activity; implicit value is 24
+#' @param activity_const_a (optional, number) normalization constant A;
+#'   implicit value is 20
+#' @param activity_const_b (optional, number) normalization constant B;
+#'   implicit value is 120
+#' @param norm_name (optional, string) name of notebook with normalized points
+#' @param norm_block (optional, string) shortcut of notebook with normalized
+#'   points
+#' @param log_folder (optional, string) path to folder where logs are written;
+#'  if it doesn't exist, it is created
+#' @param group_file_name (optional, string) name of file, where partial data
+#'  are written
+#'
+#' @return (silently) tibble with data created
+#' 
 #' @export
+#
 normalize_micro <- function(
-  norm_name,
-  norm_block,
-  ...,
-  log_folder = "logs",
-  group_file_name = "last_groupings.RData") {
+    ...,
+    no_of_seminars = 12L, # is it necessary any more???
+    max_points_attendance = 6,
+    max_points_activity = 24,
+    activity_const_a = 20,
+    activity_const_b = 120,
+    norm_name = "Normované body za průběžnou práci na semináři",
+    norm_block = "bodsemin",
+    log_folder = "logs",
+    group_file_name = "last_groupings.RData") {
   # create log folder if necessary and start logging
   if (!dir.exists(log_folder)) {
     dir.create(log_folder)
@@ -539,90 +641,38 @@ normalize_micro <- function(
     norm_block
   )
   try({
+    # get renegades (i.e. students that stopped working within the term)
+    renegades <- get_renegades(...)
     # get the data on students and teachers, join them, and save
     # saving needed because after the end of the term some students may drop
     # and the later computation would be off
     students <- get_students_attached_to_teachers(...)
     save(students, file = group_file_name)
-    # get data on students' points and summarize them
-    sum_points <- get_activity_points(...)
-    # get data on students' attendance
-    attendances <- MUIS::read_all_presence_points(...) |>
-      dplyr::rename(student_uco = uco)
-    # joint points and attendances to students
+    # add activity points and attendance points
     students <- students |>
-      dplyr::left_join(sum_points, by = "student_uco") |>
-      dplyr::left_join(attendances, by = "student_uco")
-    # get renegades (i.e. students that stopped working within the term)
-    renegades <- get_renegades(...)
-    # get illbill (i.e. the number of excused absences)
-    # illbill <- get_illbill(...) |>
-    #   rename(student_uco = uco)
-    # students <- left_join(students, illbill, by = "student_uco")
-    # add excused seminars
-    # if (file.exists(excused_seminars_file)) {
-    #   source(excused_seminars_file)
-    # } else {
-    #   excused_seminars <- tibble(
-    #     course = character(0),
-    #     seminar = character(0),
-    #     excused_seminars = integer(0)
-    #   )
-    #   logwarn(
-    #     "File %s does not exist; I ignore it.",
-    #     excused_seminars_file
-    #   )
-    # }
-    # students <- left_join(students, excused_seminars,
-    #   by = c("course", "seminar")
-    # ) |>
-    #   mutate(
-    #     excused_seminars = if_else(is.na(excused_seminars),
-    #       0L, excused_seminars
-    #     ),
-    #     excused = excused + excused_seminars
-    #   )
-    # compute raw points -- take into account excused absences
-    students <- students |>
-      dplyr::mutate(
-        activity_points_augmented = activity_points * no_of_seminars /
-          (no_of_seminars - excused),
-        activity_points_augmented = dplyr::if_else(is.nan(activity_points_augmented),
-          activity_points,
-          activity_points_augmented
-        ),
-        raw_points = attendance_points + activity_points_augmented
-      )
-    # normalize points
-    students <- students |>
-      normalize_points() |> 
-      dplyr::mutate(full_string = stringr::str_c(
-        "Body za účast: ", attendance_points,
-        " (omluveno: ", excused, ")\n",
-        "(účast: ", attendance_string, ")\n\n",
-        "Body za aktivitu: ", round(activity_points, 1), "\n",
-        "(body: ", activity_string, ")\n\n",
-        "Hrubé body za účast a aktivitu: ", round(raw_points, 1), "\n",
-        "Normované body za účast a aktivitu: *", norm_points
-      ))
+      dplyr::left_join(get_activity_points(...), by = "student_uco") |>
+      dplyr::left_join(get_attendance(...), by = "student_uco") |>
+      # augment data for illness and various number of examinations
+      augment_points() |>
+      # normalize points
+      normalize_points(
+        max_points_activity,
+        activity_const_a,
+        activity_const_b
+      ) |>
+      # add output string
+      add_output_string()
     # create blocks for normalization and write the normalized points to IS
     write_data_to_is(students, norm_name, norm_block, ...)
   })
   # log the end
-  loginfo("Stopping Micro point normalization.")
-  loginfo(
+  logging::loginfo("Stopping Micro point normalization.")
+  logging::loginfo(
     "Finished with %s errors and %s warnings",
     no_of_errors, no_of_warnings
   )
   # send mail
-  mail_subject <- ifelse(no_of_errors == 0,
-    "Mikro: Seminar points normalization -- everything is o.k.",
-    "Mikro: BEWARE: Seminar points normalization failed!"
-  )
-  send_mail(
-    subject = mail_subject,
-    body = str_c(mail_subject, "\n\n\n", read_file(log_file))
-  )
+  create_and_send_mail()
   # return invisibly
   invisible(students)
 }
