@@ -14,7 +14,9 @@ normalize_micro(
   norm_name = "Normované body za průběžnou práci na semináři",
   norm_block = "bodsemin",
   log_folder = "logs",
-  group_file_name = "last_groupings.RData"
+  group_file_name = "last_groupings.RData",
+  sender = "847@muni.cz",
+  recipient = sender
 )
 }
 \arguments{

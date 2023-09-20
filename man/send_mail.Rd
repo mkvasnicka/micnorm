@@ -4,7 +4,7 @@
 \alias{send_mail}
 \title{Send email.}
 \usage{
-send_mail(subject, body, sender = "847@muni.cz", recipients = sender)
+send_mail(subject, body, sender, recipients = sender)
 }
 \arguments{
 \item{subject}{(character string) mail header}

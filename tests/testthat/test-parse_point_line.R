@@ -4,7 +4,7 @@ test_that("parse point line works", {
                                 number_of_excused_call_ups = 0L,
                                 raised_hand_points = 0,
                                 errors = 0L) {
-        tibble(
+        tibble::tibble(
             input = input,
             call_up_points = call_up_points,
             number_of_excused_call_ups = number_of_excused_call_ups,

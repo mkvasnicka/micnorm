@@ -2,13 +2,24 @@
 % Please edit documentation in R/micnorm.R
 \name{get_attendance}
 \alias{get_attendance}
-\title{Get attendance in several courses.}
+\title{Get and normalize attendance in several courses.}
 \usage{
-get_attendance(...)
+get_attendance(..., no_of_seminars, max_points_attendance)
 }
 \arguments{
 \item{...}{credentials separated by commas}
 }
+\value{
+a tibble with following columns:
+\itemize{
+\item course,
+\item student_uco,
+\item attendance_string,
+\item attendance_points,
+\item normalized_attendance, and
+\item credentials
+}
+}
 \description{
-Get attendance in several courses.
+Get and normalize attendance in several courses.
 }

@@ -32,7 +32,7 @@ MUIS::credentials
 send_mail <- function(
     subject,
     body,
-    sender = "847@muni.cz",
+    sender,
     recipients = sender) {
   logging::loginfo("Sending the mail.")
   try({
@@ -51,16 +51,22 @@ send_mail <- function(
 
 
 #' Create email from log and send it.
-#' 
+#'
+#' @param sender (string) sender's email address
+#' @param recipient (string) recipient's email address
+#' @param log_file (string) path to log file
+#'
 #' @return none -- it only sends the mail
-create_and_send_mail <- function() {
+create_and_send_mail <- function(sender, recipient, log_file) {
   mail_subject <- ifelse(no_of_errors == 0,
     "Mikro: Seminar points normalization -- everything is o.k.",
     "Mikro: BEWARE: Seminar points normalization failed!"
   )
   send_mail(
     subject = mail_subject,
-    body = stringr::str_c(mail_subject, "\n\n\n", readr::read_file(log_file))
+    body = stringr::str_c(mail_subject, "\n\n\n", readr::read_file(log_file)),
+    sender = sender,
+    recipient = recipient
   )
 }
 
@@ -199,12 +205,12 @@ get_all_teachers <- function(...) {
 #' - credentials
 get_students_attached_to_teachers <- function(...) {
   students <- get_all_students(...)
-  teachers <- get_all_teachers(...) |>
-    dplyr::select(-credentials)
+  teachers <- get_all_teachers(...) #|>
+    # dplyr::select(-credentials)
   dplyr::left_join(
     students,
     teachers,
-    by = c("course", "seminar")
+    by = c("credentials", "course", "seminar")
   ) |>
     dplyr::select(
       course, seminar,
@@ -474,14 +480,34 @@ get_renegades <- function(...) {
 
 # attendance ------------------------------------------------------------------
 
-#' Get attendance in several courses.
-#' 
+#' Get and normalize attendance in several courses.
+#'
 #' @param ... credentials separated by commas
-get_attendance <- function(...) {
+#'
+#' @return a tibble with following columns:
+#' - course,
+#' - student_uco,
+#' - attendance_string,
+#' - attendance_points,
+#' - normalized_attendance, and
+#' - credentials
+get_attendance <- function(..., no_of_seminars, max_points_attendance) {
   creds <- list(...)
   purrr::map(creds, MUIS::read_all_presence_points) |>
     dplyr::bind_rows() |>
-    dplyr::rename(student_uco = uco)
+    dplyr::rename(student_uco = uco) |>
+    dplyr::mutate(
+      normalized_attendance = attendance_points * max_points_attendance /
+        no_of_seminars
+    ) |>
+    dplyr::select(
+      course,
+      student_uco,
+      attendance_string,
+      attendance_points,
+      normalized_attendance,
+      dplyr::everything()
+    )
 }
 
 
@@ -671,7 +697,7 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
 #
 normalize_micro <- function(
     ...,
-    no_of_seminars = 12L, # is it necessary any more???
+    no_of_seminars = 12L,
     max_points_attendance = 6,
     max_points_activity = 24,
     activity_const_a = 20,
@@ -679,7 +705,9 @@ normalize_micro <- function(
     norm_name = "Normované body za průběžnou práci na semináři",
     norm_block = "bodsemin",
     log_folder = "logs",
-    group_file_name = "last_groupings.RData") {
+    group_file_name = "last_groupings.RData",
+    sender  = "847@muni.cz",
+    recipient = sender) {
   # create log folder if necessary and start logging
   if (!dir.exists(log_folder)) {
     dir.create(log_folder)
@@ -708,22 +736,33 @@ normalize_micro <- function(
     # and the later computation would be off
     students <- get_students_attached_to_teachers(...)
     save(students, file = group_file_name)
-    # add activity points and attendance points
+    # add activity points
     students <- students |>
-      dplyr::left_join(get_activity_points(...), by = "student_uco") |>
-      dplyr::left_join(get_attendance(...), by = "student_uco") |>
-      # augment data for illness and various number of examinations
+      dplyr::left_join(
+        get_activity_points(...),
+        by = c("credentials", "student_uco")
+      ) |>
+      # augment them for illness and various number of examinations
       augment_points() |>
-      # normalize points
+      # normalize them
       normalize_points(
         max_points_activity,
         activity_const_a,
         activity_const_b
       ) |>
+      # add and normalize attendance points
+      dplyr::left_join(
+        get_attendance(
+          ...,
+          no_of_seminars = no_of_seminars,
+          max_points_attendance = max_points_attendance
+        ),
+        by = c("credentials", "student_uco")
+      ) |>
       # add output string
-      add_output_string()
-    # create blocks for normalization and write the normalized points to IS
-    write_data_to_is(students, norm_name, norm_block, ...)
+      add_output_string() |>
+      # create blocks for normalization and write the normalized points to IS
+      write_data_to_is(norm_name, norm_block, ...)
   })
   # log the end
   logging::loginfo("Stopping Micro point normalization.")
@@ -732,7 +771,7 @@ normalize_micro <- function(
     no_of_errors, no_of_warnings
   )
   # send mail
-  create_and_send_mail()
+  create_and_send_mail(sender, recipient, log_file)
   # return invisibly
   invisible(students)
 }

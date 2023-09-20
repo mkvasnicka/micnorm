@@ -4,7 +4,14 @@
 \alias{create_and_send_mail}
 \title{Create email from log and send it.}
 \usage{
-create_and_send_mail()
+create_and_send_mail(sender, recipient, log_file)
+}
+\arguments{
+\item{sender}{(string) sender's email address}
+
+\item{recipient}{(string) recipient's email address}
+
+\item{log_file}{(string) path to log file}
 }
 \value{
 none -- it only sends the mail
