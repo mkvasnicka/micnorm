@@ -426,83 +426,6 @@ get_attendance <- function(...) {
 }
 
 
-# writing data ----------------------------------------------------------------
-
-#' Create normalization notebooks.
-#'
-#' `safely_create_normalized_block()` creates notebooks for normalized points
-#' for several courses if they don't exist.
-#'
-#' @param name (string) full name of the notebook
-#' @param shortcut (string) shortcut name of the notebook
-#' @param ... credentials
-#'
-#' @return none, it only creates the blocks in IS
-safely_create_normalized_block <- function(name, shortcut, ...) {
-  creds <- list(...)
-  logging::loginfo(
-    "Creating normalization block for %s courses.",
-    length(creds)
-  )
-  purrr::walk(
-    creds,
-    function(c) {
-      if (!MUIS::notebook_exists(c, shortcut)) {
-        logging::loginfo("... creating block for %s.", c$course)
-        tryCatch(
-          MUIS::create_notebook(c, name, shortcut, initialize = FALSE),
-          error = function(e) {
-            no_of_errors <<- no_of_errors + 1
-            logging::logerror(e)
-          }
-        )
-      }
-    }
-  )
-}
-
-
-#' Writes normalized points to IS.
-#'
-#' `write_data_to_is()` writes students' normalized points to normalization
-#' blocks in IS for several courses.
-#'
-#' @param students ... a tibble with points
-#' @param norm_name ... (string) full name of the block
-#' @param norm_block ... (string) shortcut name of the block
-#' @param ... credentials separated by commas
-#'
-#' @return none, it only writes the data to the blocks in IS
-#'
-#' @details if the notebooks don't exist, it creates them
-write_data_to_is <- function(students, norm_name, norm_block, ...) {
-  creds <- list(...)
-  logging::loginfo(
-    "Trying to write normalized points for %s courses to IS.",
-    length(creds)
-  )
-  safely_create_normalized_block(norm_name, norm_block, ...)
-  purrr::walk(
-    creds,
-    function(c) {
-      tryCatch(
-        {
-          logging::loginfo("... writing course %s.", c$course)
-          s <- students |>
-            dplyr::filter(course == c$course) |>
-            dplyr::select(uco = student_uco, value = full_string)
-          MUIS::write_notebook(c, norm_block, s)
-        },
-        error = function(e) {
-          logging::logerror(e)
-          no_of_errors <<- no_of_errors + 1
-        }
-      )
-    }
-  )
-}
-
-
 
 # point augmentation ----------------------------------------------------------
 
@@ -578,6 +501,84 @@ add_output_string <- function(students) {
     "Hrubé body za účast a aktivitu: ", round(raw_points, 1), "\n",
     "Normované body za účast a aktivitu: *", norm_points
   ))
+}
+
+
+
+# writing data ----------------------------------------------------------------
+
+#' Create normalization notebooks.
+#'
+#' `safely_create_normalized_block()` creates notebooks for normalized points
+#' for several courses if they don't exist.
+#'
+#' @param name (string) full name of the notebook
+#' @param shortcut (string) shortcut name of the notebook
+#' @param ... credentials
+#'
+#' @return none, it only creates the blocks in IS
+safely_create_normalized_block <- function(name, shortcut, ...) {
+  creds <- list(...)
+  logging::loginfo(
+    "Creating normalization block for %s courses.",
+    length(creds)
+  )
+  purrr::walk(
+    creds,
+    function(c) {
+      if (!MUIS::notebook_exists(c, shortcut)) {
+        logging::loginfo("... creating block for %s.", c$course)
+        tryCatch(
+          MUIS::create_notebook(c, name, shortcut, initialize = FALSE),
+          error = function(e) {
+            no_of_errors <<- no_of_errors + 1
+            logging::logerror(e)
+          }
+        )
+      }
+    }
+  )
+}
+
+
+#' Writes normalized points to IS.
+#'
+#' `write_data_to_is()` writes students' normalized points to normalization
+#' blocks in IS for several courses.
+#'
+#' @param students ... a tibble with points
+#' @param norm_name ... (string) full name of the block
+#' @param norm_block ... (string) shortcut name of the block
+#' @param ... credentials separated by commas
+#'
+#' @return none, it only writes the data to the blocks in IS
+#'
+#' @details if the notebooks don't exist, it creates them
+write_data_to_is <- function(students, norm_name, norm_block, ...) {
+  creds <- list(...)
+  logging::loginfo(
+    "Trying to write normalized points for %s courses to IS.",
+    length(creds)
+  )
+  safely_create_normalized_block(norm_name, norm_block, ...)
+  purrr::walk(
+    creds,
+    function(c) {
+      tryCatch(
+        {
+          logging::loginfo("... writing course %s.", c$course)
+          s <- students |>
+            dplyr::filter(course == c$course) |>
+            dplyr::select(uco = student_uco, value = full_string)
+          MUIS::write_notebook(c, norm_block, s)
+        },
+        error = function(e) {
+          logging::logerror(e)
+          no_of_errors <<- no_of_errors + 1
+        }
+      )
+    }
+  )
 }
 
 
