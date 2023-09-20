@@ -119,7 +119,7 @@ get_all_students <- function(...) {
           MUIS::get_seminar_students(c),
           error = function(e) {
             logging::logerror(e)
-            errs$no_of_errors <- no_of_errors + 1
+            errs$no_of_errors <- errs$no_of_errors + 1
             NULL
           }
         )
@@ -136,7 +136,7 @@ get_all_students <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- no_of_errors + 1
+      errs$no_of_errors <- errs$no_of_errors + 1
       NULL
     }
   )
@@ -178,7 +178,7 @@ get_all_teachers <- function(...) {
           MUIS::get_teachers(c),
           error = function(e) {
             logging::logerror(e)
-            errs$no_of_errors <- no_of_errors + 1
+            errs$no_of_errors <- errs$no_of_errors + 1
             NULL
           }
         )
@@ -195,7 +195,7 @@ get_all_teachers <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- no_of_errors + 1
+      errs$no_of_errors <- errs$no_of_errors + 1
       NULL
     }
   )
@@ -271,7 +271,7 @@ get_list_of_existing_notebooks <- function(
           MUIS::list_notebooks(c),
           error = function(e) {
             logging::logerror(e)
-            errs$no_of_errors <- no_of_errors + 1
+            errs$no_of_errors <- errs$no_of_errors + 1
             NULL
           }
         )
@@ -282,7 +282,7 @@ get_list_of_existing_notebooks <- function(
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- no_of_errors + 1
+      errs$no_of_errors <- errs$no_of_errors + 1
       NULL
     }
   )
@@ -323,7 +323,7 @@ read_points_from_blocks <- function(blocks) {
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- no_of_errors + 1
+      errs$no_of_errors <- errs$no_of_errors + 1
       NULL
     }
   )
@@ -419,7 +419,7 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
       misshaped$content[k]
     )
   }
-  no_of_warnings <<- no_of_warnings + nrow(misshaped)
+  errs$no_of_warnings <- errs$no_of_warnings + nrow(misshaped)
   #
   # activity_points |>
   #   dplyr::group_by(uco) |>
@@ -478,13 +478,13 @@ get_renegades <- function(...) {
                 "... the block 'renegades' does not exist for course %s.",
                 c$course
               )
-              errs$no_of_warnings <<- no_of_warnings + 1
+              errs$no_of_warnings <<- errs$no_of_warnings + 1
               empty
             }
           },
           error = function(e) {
             logging::logerror(e)
-            errs$no_of_errors <- no_of_errors + 1
+            errs$no_of_errors <- errs$no_of_errors + 1
             empty
           }
         )
@@ -499,7 +499,7 @@ get_renegades <- function(...) {
           "... strange renegade coding for UCOs %s.",
           stringr::str_c(strange, collapse = ", ")
         )
-        no_of_warnings <<- no_of_warnings + 1
+        errs$no_of_warnings <- errs$no_of_warnings + 1
       }
       renegades |>
         dplyr::filter(stringr::str_detect(content, "^[Xx]$")) |>
@@ -507,7 +507,7 @@ get_renegades <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- no_of_errors + 1
+      errs$no_of_errors <- errs$no_of_errors + 1
       integer(0)
     }
   )
@@ -662,7 +662,7 @@ safely_create_normalized_block <- function(name, shortcut, ...) {
         tryCatch(
           MUIS::create_notebook(c, name, shortcut, initialize = FALSE),
           error = function(e) {
-            errs$no_of_errors <- no_of_errors + 1
+            errs$no_of_errors <- errs$no_of_errors + 1
             logging::logerror(e)
           }
         )
@@ -705,7 +705,7 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
         },
         error = function(e) {
           logging::logerror(e)
-          errs$no_of_errors <- no_of_errors + 1
+          errs$no_of_errors <- errs$no_of_errors + 1
         }
       )
     }
@@ -768,7 +768,7 @@ normalize_micro <- function(
   )
   logging::addHandler(logging::writeToFile, file = log_file)
   errs$no_of_errors <- 0
-  no_of_warnings <<- 0
+  errs$no_of_warnings <- 0
   # log the start
   logging::loginfo(
     "Starting Micro point normalization on %s.",
