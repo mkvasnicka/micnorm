@@ -20,3 +20,6 @@ Imports:
     tibble (>= 3.2.1)
 Remotes: 
     mkvasnicka/MUIS
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

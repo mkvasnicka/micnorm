@@ -271,6 +271,65 @@ get_list_of_existing_notebooks <- function(...) {
 }
 
 
+parse_point_line <- function(
+    line,
+    excused_call_up_sign = "X",
+    max_points = 5) {
+    # assume line is character scalar
+    stopifnot(is.character(line), length(line) == 1)
+    # split line into two parts: call up and raised hand points
+    lines <- line |>
+        stringr::str_split_fixed("\\|", 2) |>
+        _[1, ] |>
+        stringr::str_squish()
+    # call up points
+    call_up <- lines[1]
+    if (call_up == "") {
+        call_up_points <- 0
+        number_of_excused_call_ups <- 0L
+        call_up_errors <- 0L
+    } else {
+        call_up <- call_up |> stringr::str_split_1("\\s+")
+        number_of_excused_call_ups <- sum(
+            call_up == excused_call_up_sign,
+            na.rm = TRUE
+        )
+        call_up <- call_up |>
+            purrr::keep(~ .x != excused_call_up_sign) |>
+            purrr::map(~ stringr::str_replace(.x, "(\\d),(\\d)", "\\1.\\2")) |>
+            purrr::map_dbl(~ suppressWarnings(as.numeric(.x)))
+        call_up_points <- sum(call_up, na.rm = TRUE)
+        call_up_errors <- sum(is.na(call_up)) +
+            sum(call_up > max_points, na.rm = TRUE)
+    }
+    # raised hand points
+    raised_hand <- lines[2]
+    if (raised_hand == "") {
+        raised_hand_points <- 0
+        raised_hand_errors <- 0L
+    } else {
+        raised_hand <- raised_hand |>
+            stringr::str_replace_all("(\\d),(\\d)", "\\1.\\2") |>
+            stringr::str_split_1("\\s+")
+        raised_hand <- suppressWarnings(as.numeric(raised_hand))
+        raised_hand_points <- sum(raised_hand, na.rm = TRUE)
+        raised_hand_errors <- sum(is.na(raised_hand)) +
+            sum(raised_hand > max_points, na.rm = TRUE)
+    }
+    # return
+    tibble::tibble(
+        input = line,
+        call_up_points = call_up_points,
+        number_of_excused_call_ups = number_of_excused_call_ups,
+        # call_up_errors = call_up_errors,
+        raised_hand_points = raised_hand_points,
+        # raised_hand_errors = raised_hand_errors,
+        errors = call_up_errors + raised_hand_errors
+    )
+}
+
+
+
 #' Read students' points from seminar notebooks.
 #' `read_points_from_blocks()` reads all blocks found by
 #' get_list_of_existing_notebooks() and returns students' points stored there
