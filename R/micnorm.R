@@ -173,6 +173,33 @@ get_all_teachers <- function(...) {
 }
 
 
+#' Get all students and attach them to teachers.
+#'
+#' @param ... credentials
+#'
+#' @return a tibble with the following columns:
+#' - course, seminar,
+#' - teacher_uco, teacher_last_name, teacher_first_name,
+#' - student_uco, student_last_name, student_first_name,
+#' - credentials
+get_students_attached_to_teachers <- function(...) {
+  students <- get_all_students(...)
+  teachers <- get_all_teachers(...) |>
+    dplyr::select(-credentials)
+  dplyr::left_join(
+    students,
+    teachers,
+    by = c("course", "seminar")
+  ) |>
+    dplyr::select(
+      course, seminar,
+      teacher_uco, teacher_last_name, teacher_first_name,
+      student_uco, student_last_name, student_first_name,
+      credentials
+    )
+}
+
+
 
 # seminar points --------------------------------------------------------------
 
@@ -438,4 +465,145 @@ normalize_points <- function(
   norm_points <- pmin(norm_points, 100)
   norm_points <- pmax(norm_points, 0)
   round(norm_points * max_points / 100)
+}
+
+
+
+# main function ---------------------------------------------------------------
+
+#' @export
+normalize_micro <- function(
+  norm_name,
+  norm_block,
+  ...,
+  log_folder = "logs",
+  group_file_name = "last_groupings.RData") {
+  # create log folder if necessary and start logging
+  if (!dir.exists(log_folder)) {
+    dir.create(log_folder)
+  }
+  log_file <- file.path(
+    log_folder,
+    stringr::str_c("micro_normalization_", Sys.Date(), ".log")
+  )
+  logging::addHandler(logging::writeToFile, file = log_file)
+  no_of_errors <<- 0
+  no_of_warnings <<- 0
+  # log the start
+  logging::loginfo(
+    "Starting Micro point normalization on %s.",
+    Sys.info()["nodename"]
+  )
+  logging::loginfo(
+    "I would write the normalize points to block with shortcut %s.",
+    norm_block
+  )
+  try({
+    # get the data on students and teachers, join them, and save
+    # saving needed because after the end of the term some students may drop
+    # and the later computation would be off
+    students <- get_students_attached_to_teachers(...)
+    save(students, file = group_file_name)
+    # TODO: from here
+    # get data on students' points and summarize them
+    blocks <- get_names_of_all_existings_blocks(...)
+    activity_points <- read_points_from_blocks(blocks)
+    sum_points <- activity_points %>%
+      group_by(uco) %>%
+      arrange(block, .by_group = TRUE) %>%
+      summarise(
+        activity_string = str_c(
+          str_replace_na(points,
+            replacement = "-"
+          ),
+          collapse = " "
+        ),
+        activity_points = sum(points, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      rename(student_uco = uco)
+    # get data on students' attendance
+    attendances <- read_all_presence_points(...) %>%
+      rename(student_uco = uco)
+    # joint points and attendances to students
+    students <- left_join(students, sum_points, by = "student_uco")
+    students <- left_join(students, attendances, by = "student_uco")
+    # get renegades (i.e. students that stopped working within the term)
+    renegades <- get_renegades(...)
+    # get illbill (i.e. the number of excused absences)
+    illbill <- get_illbill(...) %>%
+      rename(student_uco = uco)
+    students <- left_join(students, illbill, by = "student_uco")
+    # add excused seminars
+    if (file.exists(excused_seminars_file)) {
+      source(excused_seminars_file)
+    } else {
+      excused_seminars <- tibble(
+        course = character(0),
+        seminar = character(0),
+        excused_seminars = integer(0)
+      )
+      logwarn(
+        "File %s does not exist; I ignore it.",
+        excused_seminars_file
+      )
+    }
+    students <- left_join(students, excused_seminars,
+      by = c("course", "seminar")
+    ) %>%
+      mutate(
+        excused_seminars = if_else(is.na(excused_seminars),
+          0L, excused_seminars
+        ),
+        excused = excused + excused_seminars
+      )
+    # compute raw points -- take into account excused absences
+    students <- students %>%
+      mutate(
+        activity_points_augmented = activity_points * no_of_seminars /
+          (no_of_seminars - excused),
+        activity_points_augmented = if_else(is.nan(activity_points_augmented),
+          activity_points,
+          activity_points_augmented
+        ),
+        raw_points = attendance_points + activity_points_augmented
+      )
+    # normalize points
+    students <- students %>%
+      group_by(teacher_uco) %>%
+      mutate(norm_points = normalize_points(
+        student_uco, raw_points,
+        renegades
+      )) %>%
+      ungroup() %>%
+      mutate(full_string = str_c(
+        "Body za účast: ", attendance_points,
+        " (omluveno: ", excused, ")\n",
+        "(účast: ", attendance_string, ")\n\n",
+        "Body za aktivitu: ", round(activity_points, 1), "\n",
+        "(body: ", activity_string, ")\n\n",
+        "Hrubé body za účast a aktivitu: ", round(raw_points, 1), "\n",
+        "Normované body za účast a aktivitu: *", norm_points
+      ))
+    # create blocks for normalization and write the normalized points to IS
+    safely_create_normalized_block(norm_name, norm_block, ...)
+    write_data_to_is(students, norm_block, ...)
+  })
+  # log the end
+  loginfo("Stopping Micro point normalization.")
+  loginfo(
+    "Finished with %s errors and %s warnings",
+    no_of_errors, no_of_warnings
+  )
+  # send mail
+  mail_subject <- ifelse(no_of_errors == 0,
+    "Mikro: Seminar points normalization -- everything is o.k.",
+    "Mikro: BEWARE: Seminar points normalization failed!"
+  )
+  send_mail(
+    subject = mail_subject,
+    body = str_c(mail_subject, "\n\n\n", read_file(log_file))
+  )
+  # return invisibly
+  invisible(students)
 }
