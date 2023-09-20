@@ -2,14 +2,14 @@
 % Please edit documentation in R/micnorm.R
 \name{read_points_from_blocks}
 \alias{read_points_from_blocks}
-\title{Read studnets' points from seminar notebooks.
+\title{Read students' points from seminar notebooks.
 \code{read_points_from_blocks()} reads all blocks found by
-get_names_of_all_existings_blocks() and returns students' points stored there}
+get_list_of_existing_notebooks() and returns students' points stored there}
 \usage{
 read_points_from_blocks(blocks)
 }
 \arguments{
-\item{blocks}{a tibble returned by \code{get_names_of_all_existings_blocks()}}
+\item{blocks}{a tibble returned by \code{get_list_of_existing_notebooks()}}
 }
 \value{
 a tibble with columns:
@@ -21,7 +21,7 @@ a tibble with columns:
 }
 }
 \description{
-Read studnets' points from seminar notebooks.
+Read students' points from seminar notebooks.
 \code{read_points_from_blocks()} reads all blocks found by
-get_names_of_all_existings_blocks() and returns students' points stored there
+get_list_of_existing_notebooks() and returns students' points stored there
 }

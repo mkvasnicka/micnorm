@@ -4,14 +4,16 @@
 \alias{write_data_to_is}
 \title{Writes normalized points to IS.}
 \usage{
-write_data_to_is(students, norm_block, ...)
+write_data_to_is(students, norm_name, norm_block, ...)
 }
 \arguments{
 \item{students}{... a tibble with points}
 
-\item{norm_block}{... shortcut name of the block}
+\item{norm_name}{... (string) full name of the block}
 
-\item{...}{credentials}
+\item{norm_block}{... (string) shortcut name of the block}
+
+\item{...}{credentials separated by commas}
 }
 \value{
 none, it only writes the data to the blocks in IS
@@ -19,4 +21,7 @@ none, it only writes the data to the blocks in IS
 \description{
 \code{write_data_to_is()} writes students' normalized points to normalization
 blocks in IS for several courses.
+}
+\details{
+if the notebooks don't exist, it creates them
 }

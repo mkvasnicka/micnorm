@@ -205,7 +205,7 @@ get_students_attached_to_teachers <- function(...) {
 
 #' Get list of all seminar points notebooks.
 #' 
-#' `get_names_of_all_existings_blocks()` downloads names of all existing blocks
+#' `get_list_of_existing_notebooks()` downloads names of all existing blocks
 #' within several courses
 #'
 #' @param `...` credentials; separated by commas
@@ -219,9 +219,9 @@ get_students_attached_to_teachers <- function(...) {
 #' @details it is protected against errors; it logs
 #'
 #' @examples \dontrun{
-#' blocks <- get_names_of_all_existings_blocks(micprez, mivs)
+#' blocks <- get_list_of_existing_notebooks(micprez, mivs)
 #' }
-get_names_of_all_existings_blocks <- function(...) {
+get_list_of_existing_notebooks <- function(...) {
   creds <- list(...)
   logging::loginfo(
     "Trying to download names of all existing blocks in %s courses.",
@@ -256,11 +256,11 @@ get_names_of_all_existings_blocks <- function(...) {
 }
 
 
-#' Read studnets' points from seminar notebooks.
+#' Read students' points from seminar notebooks.
 #' `read_points_from_blocks()` reads all blocks found by
-#' get_names_of_all_existings_blocks() and returns students' points stored there
+#' get_list_of_existing_notebooks() and returns students' points stored there
 #'
-#' @param blocks a tibble returned by `get_names_of_all_existings_blocks()`
+#' @param blocks a tibble returned by `get_list_of_existing_notebooks()`
 #'
 #' @return a tibble with columns:
 #' - uco,
@@ -294,6 +294,32 @@ read_points_from_blocks <- function(blocks) {
     }
   )
 }
+
+
+#' Get and process students' activity points.
+#' 
+#' @param ... credentials
+#' 
+#' @return some tibble
+get_activity_points <- function(...) {
+  blocks <- get_list_of_existing_notebooks(...)
+  activity_points <- read_points_from_blocks(blocks)
+  activity_points |>
+    dplyr::group_by(uco) |>
+    dplyr::arrange(block, .by_group = TRUE) |>
+    dplyr::summarize(
+      activity_string = stringr::str_c(
+        stringr::str_replace_na(points,
+          replacement = "-"
+        ),
+        collapse = " "
+      ),
+      activity_points = sum(points, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    dplyr::rename(student_uco = uco)
+}
+
 
 
 # renegades -------------------------------------------------------------------
@@ -414,16 +440,20 @@ safely_create_normalized_block <- function(name, shortcut, ...) {
 #' blocks in IS for several courses.
 #'
 #' @param students ... a tibble with points
-#' @param norm_block ... shortcut name of the block
-#' @param ... credentials
+#' @param norm_name ... (string) full name of the block
+#' @param norm_block ... (string) shortcut name of the block
+#' @param ... credentials separated by commas
 #'
 #' @return none, it only writes the data to the blocks in IS
-write_data_to_is <- function(students, norm_block, ...) {
+#'
+#' @details if the notebooks don't exist, it creates them
+write_data_to_is <- function(students, norm_name, norm_block, ...) {
   creds <- list(...)
   logging::loginfo(
     "Trying to write normalized points for %s courses to IS.",
     length(creds)
   )
+  safely_create_normalized_block(norm_name, norm_block, ...)
   purrr::walk(
     creds,
     function(c) {
@@ -449,7 +479,7 @@ write_data_to_is <- function(students, norm_block, ...) {
 # point normalization -----------------------------------------------------
 
 # normalize points
-normalize_points <- function(
+normalize_points_in_one_group <- function(
     ucos,
     raw_points,
     renegades,
@@ -458,13 +488,23 @@ normalize_points <- function(
     max_points = 24) {
   valid <- !(ucos %in% renegades)
   mean_points <- mean(raw_points[valid])
-  sd_points <- sd(raw_points[valid])
+  sd_points <- stats::sd(raw_points[valid])
   c1 <- (a + b) / 2
   c2 <- (b - a) / (4 * sd_points)
   norm_points <- (c1 + c2 * (raw_points - mean_points))
   norm_points <- pmin(norm_points, 100)
   norm_points <- pmax(norm_points, 0)
   round(norm_points * max_points / 100)
+}
+
+normalize_points <- function(students) {
+  students |>
+    dplyr::group_by(teacher_uco) |>
+    dplyr::mutate(norm_points = normalize_points_in_one_group(
+      student_uco, raw_points,
+      renegades
+    )) |>
+    dplyr::ungroup()
 }
 
 
@@ -504,79 +544,59 @@ normalize_micro <- function(
     # and the later computation would be off
     students <- get_students_attached_to_teachers(...)
     save(students, file = group_file_name)
-    # TODO: from here
     # get data on students' points and summarize them
-    blocks <- get_names_of_all_existings_blocks(...)
-    activity_points <- read_points_from_blocks(blocks)
-    sum_points <- activity_points %>%
-      group_by(uco) %>%
-      arrange(block, .by_group = TRUE) %>%
-      summarise(
-        activity_string = str_c(
-          str_replace_na(points,
-            replacement = "-"
-          ),
-          collapse = " "
-        ),
-        activity_points = sum(points, na.rm = TRUE),
-        .groups = "drop"
-      ) %>%
-      rename(student_uco = uco)
+    sum_points <- get_activity_points(...)
     # get data on students' attendance
-    attendances <- read_all_presence_points(...) %>%
-      rename(student_uco = uco)
+    attendances <- MUIS::read_all_presence_points(...) |>
+      dplyr::rename(student_uco = uco)
     # joint points and attendances to students
-    students <- left_join(students, sum_points, by = "student_uco")
-    students <- left_join(students, attendances, by = "student_uco")
+    students <- students |>
+      dplyr::left_join(sum_points, by = "student_uco") |>
+      dplyr::left_join(attendances, by = "student_uco")
     # get renegades (i.e. students that stopped working within the term)
     renegades <- get_renegades(...)
     # get illbill (i.e. the number of excused absences)
-    illbill <- get_illbill(...) %>%
-      rename(student_uco = uco)
-    students <- left_join(students, illbill, by = "student_uco")
+    # illbill <- get_illbill(...) |>
+    #   rename(student_uco = uco)
+    # students <- left_join(students, illbill, by = "student_uco")
     # add excused seminars
-    if (file.exists(excused_seminars_file)) {
-      source(excused_seminars_file)
-    } else {
-      excused_seminars <- tibble(
-        course = character(0),
-        seminar = character(0),
-        excused_seminars = integer(0)
-      )
-      logwarn(
-        "File %s does not exist; I ignore it.",
-        excused_seminars_file
-      )
-    }
-    students <- left_join(students, excused_seminars,
-      by = c("course", "seminar")
-    ) %>%
-      mutate(
-        excused_seminars = if_else(is.na(excused_seminars),
-          0L, excused_seminars
-        ),
-        excused = excused + excused_seminars
-      )
+    # if (file.exists(excused_seminars_file)) {
+    #   source(excused_seminars_file)
+    # } else {
+    #   excused_seminars <- tibble(
+    #     course = character(0),
+    #     seminar = character(0),
+    #     excused_seminars = integer(0)
+    #   )
+    #   logwarn(
+    #     "File %s does not exist; I ignore it.",
+    #     excused_seminars_file
+    #   )
+    # }
+    # students <- left_join(students, excused_seminars,
+    #   by = c("course", "seminar")
+    # ) |>
+    #   mutate(
+    #     excused_seminars = if_else(is.na(excused_seminars),
+    #       0L, excused_seminars
+    #     ),
+    #     excused = excused + excused_seminars
+    #   )
     # compute raw points -- take into account excused absences
-    students <- students %>%
-      mutate(
+    students <- students |>
+      dplyr::mutate(
         activity_points_augmented = activity_points * no_of_seminars /
           (no_of_seminars - excused),
-        activity_points_augmented = if_else(is.nan(activity_points_augmented),
+        activity_points_augmented = dplyr::if_else(is.nan(activity_points_augmented),
           activity_points,
           activity_points_augmented
         ),
         raw_points = attendance_points + activity_points_augmented
       )
     # normalize points
-    students <- students %>%
-      group_by(teacher_uco) %>%
-      mutate(norm_points = normalize_points(
-        student_uco, raw_points,
-        renegades
-      )) %>%
-      ungroup() %>%
-      mutate(full_string = str_c(
+    students <- students |>
+      normalize_points() |> 
+      dplyr::mutate(full_string = stringr::str_c(
         "Body za účast: ", attendance_points,
         " (omluveno: ", excused, ")\n",
         "(účast: ", attendance_string, ")\n\n",
@@ -586,8 +606,7 @@ normalize_micro <- function(
         "Normované body za účast a aktivitu: *", norm_points
       ))
     # create blocks for normalization and write the normalized points to IS
-    safely_create_normalized_block(norm_name, norm_block, ...)
-    write_data_to_is(students, norm_block, ...)
+    write_data_to_is(students, norm_name, norm_block, ...)
   })
   # log the end
   loginfo("Stopping Micro point normalization.")
