@@ -398,7 +398,13 @@ parse_point_line <- function(
 #' @param name_mask (string) regular expression that says how are named 
 #'   the notebooks where activity points are stored
 #'
-#' @return some tibble
+#' @return tibble with following columns:
+#' - credentials
+#' - student_uco
+#' -call_up_points
+#' - number_of_non_excused_call_ups
+#' - number_of_excused_call_ups
+#' - raised_hand_points
 get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
   blocks <- get_list_of_existing_notebooks(..., name_mask = name_mask)
   activity_points <- read_points_from_blocks(blocks)
@@ -420,22 +426,23 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
     )
   }
   errs$no_of_warnings <- errs$no_of_warnings + nrow(misshaped)
-  #
-  # activity_points |>
-  #   dplyr::group_by(uco) |>
-  #   dplyr::arrange(block, .by_group = TRUE) |>
-  #   dplyr::summarize(
-  #     activity_string = stringr::str_c(
-  #       stringr::str_replace_na(points,
-  #         replacement = "-"
-  #       ),
-  #       collapse = " "
-  #     ),
-  #     activity_points = sum(points, na.rm = TRUE),
-  #     .groups = "drop"
-  #   ) |>
-  #   dplyr::rename(student_uco = uco)
-  activity_points
+  # aggregation
+  activity_points |>
+    dplyr::group_by(credentials, uco) |>
+    dplyr::summarize(
+      call_up_points = sum(call_up_points, na.rm = TRUE),
+      number_of_non_excused_call_ups = sum(
+        number_of_non_excused_call_ups,
+        na.rm = TRUE
+      ),
+      number_of_excused_call_ups = sum(
+        number_of_excused_call_ups,
+        na.rm = TRUE
+      ),
+      raised_hand_points = sum(raised_hand_points, na.rm = TRUE)
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::rename(student_uco = uco)
 }
 
 

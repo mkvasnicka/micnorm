@@ -13,7 +13,15 @@ get_activity_points(..., name_mask = "^bodysemin\\\\d{2}$")
 the notebooks where activity points are stored}
 }
 \value{
-some tibble
+tibble with following columns:
+\itemize{
+\item credentials
+\item student_uco
+-call_up_points
+\item number_of_non_excused_call_ups
+\item number_of_excused_call_ups
+\item raised_hand_points
+}
 }
 \description{
 Get and process students' activity points.
