@@ -4,10 +4,13 @@
 \alias{get_activity_points}
 \title{Get and process students' activity points.}
 \usage{
-get_activity_points(...)
+get_activity_points(..., name_mask = "^bodysemin\\\\d{2}$")
 }
 \arguments{
 \item{...}{credentials}
+
+\item{name_mask}{(string) regular expression that says how are named
+the notebooks where activity points are stored}
 }
 \value{
 some tibble

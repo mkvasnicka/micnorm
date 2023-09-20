@@ -11,6 +11,7 @@ normalize_micro(
   max_points_activity = 24,
   activity_const_a = 20,
   activity_const_b = 120,
+  activity_name_mask = "^bodysemin\\\\d{2}$",
   norm_name = "Normované body za průběžnou práci na semináři",
   norm_block = "bodsemin",
   log_folder = "logs",
@@ -34,6 +35,10 @@ implicit value is 20}
 
 \item{activity_const_b}{(optional, number) normalization constant B;
 implicit value is 120}
+
+\item{activity_name_mask}{(optional, string) regular expression that says
+how are named the notebooks where activity points are stored;
+implicitly "^bodysemin\\d{2}$",}
 
 \item{norm_name}{(optional, string) name of notebook with normalized points}
 
