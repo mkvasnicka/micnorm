@@ -1,13 +1,14 @@
 # errors and warnings logging -------------------------------------------------
 
-no_of_errors <- 0
-no_of_warnings <- 0
+errs <- new.env(parent = emptyenv())
+errs$no_of_errors <- 0
+errs$no_of_warnings <- 0
 
 
 
 # credentials -----------------------------------------------------------------
 
-#' @export 
+#' @export
 #' @importFrom MUIS credentials
 MUIS::credentials
 
@@ -58,13 +59,20 @@ send_mail <- function(
 #'
 #' @return none -- it only sends the mail
 create_and_send_mail <- function(sender, recipient, log_file) {
-  mail_subject <- ifelse(no_of_errors == 0,
+  mail_subject <- ifelse(errs$no_of_errors == 0,
     "Mikro: Seminar points normalization -- everything is o.k.",
     "Mikro: BEWARE: Seminar points normalization failed!"
   )
   send_mail(
     subject = mail_subject,
-    body = stringr::str_c(mail_subject, "\n\n\n", readr::read_file(log_file)),
+    body = stringr::str_c(
+      mail_subject,
+      "\n\n\n",
+      "Number of errors: ", errs$no_of_errors, "\n",
+      "Number of warnings: ", errs$no_of_warnings, "\n",
+      "\n\n\n",
+      readr::read_file(log_file)
+    ),
     sender = sender,
     recipient = recipient
   )
@@ -111,7 +119,7 @@ get_all_students <- function(...) {
           MUIS::get_seminar_students(c),
           error = function(e) {
             logging::logerror(e)
-            no_of_errors <<- no_of_errors + 1
+            errs$no_of_errors <- no_of_errors + 1
             NULL
           }
         )
@@ -128,7 +136,7 @@ get_all_students <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      no_of_errors <<- no_of_errors + 1
+      errs$no_of_errors <- no_of_errors + 1
       NULL
     }
   )
@@ -170,7 +178,7 @@ get_all_teachers <- function(...) {
           MUIS::get_teachers(c),
           error = function(e) {
             logging::logerror(e)
-            no_of_errors <<- no_of_errors + 1
+            errs$no_of_errors <- no_of_errors + 1
             NULL
           }
         )
@@ -187,7 +195,7 @@ get_all_teachers <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      no_of_errors <<- no_of_errors + 1
+      errs$no_of_errors <- no_of_errors + 1
       NULL
     }
   )
@@ -222,14 +230,16 @@ get_students_attached_to_teachers <- function(...) {
 
 
 
-# seminar points --------------------------------------------------------------
+# activity points -------------------------------------------------------------
 
-#' Get list of all seminar points notebooks.
-#' 
+#' Get list of all activity points notebooks.
+#'
 #' `get_list_of_existing_notebooks()` downloads names of all existing blocks
 #' within several courses
 #'
 #' @param `...` credentials; separated by commas
+#' @param name_mask (string) regular expression that says how are named
+#'   the notebooks that include activity points
 #'
 #' @return a tibble of names of all existing blocks; it includes columns:
 #' - course,
@@ -242,7 +252,9 @@ get_students_attached_to_teachers <- function(...) {
 #' @examples \dontrun{
 #' blocks <- get_list_of_existing_notebooks(micprez, mivs)
 #' }
-get_list_of_existing_notebooks <- function(...) {
+get_list_of_existing_notebooks <- function(
+    ...,
+    name_mask = "^bodysemin\\d{2}$") {
   creds <- list(...)
   logging::loginfo(
     "Trying to download names of all existing blocks in %s courses.",
@@ -259,79 +271,21 @@ get_list_of_existing_notebooks <- function(...) {
           MUIS::list_notebooks(c),
           error = function(e) {
             logging::logerror(e)
-            no_of_errors <<- no_of_errors + 1
+            errs$no_of_errors <- no_of_errors + 1
             NULL
           }
         )
       }) |>
         dplyr::bind_rows() |>
-        dplyr::filter(stringr::str_detect(shortcut, "^bodysemin\\d{2}")) |>
+        dplyr::filter(stringr::str_detect(shortcut, name_mask)) |>
         dplyr::arrange(shortcut, course)
     },
     error = function(e) {
       logging::logerror(e)
-      no_of_errors <<- no_of_errors + 1
+      errs$no_of_errors <- no_of_errors + 1
       NULL
     }
   )
-}
-
-
-parse_point_line <- function(
-    line,
-    excused_call_up_sign = "X",
-    max_points = 5) {
-    # assume line is character scalar
-    stopifnot(is.character(line), length(line) == 1)
-    # split line into two parts: call up and raised hand points
-    lines <- line |>
-        stringr::str_split_fixed("\\|", 2) |>
-        _[1, ] |>
-        stringr::str_squish()
-    # call up points
-    call_up <- lines[1]
-    if (call_up == "") {
-        call_up_points <- 0
-        number_of_excused_call_ups <- 0L
-        call_up_errors <- 0L
-    } else {
-        call_up <- call_up |> stringr::str_split_1("\\s+")
-        number_of_excused_call_ups <- sum(
-            call_up == excused_call_up_sign,
-            na.rm = TRUE
-        )
-        call_up <- call_up |>
-            purrr::keep(~ .x != excused_call_up_sign) |>
-            purrr::map(~ stringr::str_replace(.x, "(\\d),(\\d)", "\\1.\\2")) |>
-            purrr::map_dbl(~ suppressWarnings(as.numeric(.x)))
-        call_up_points <- sum(call_up, na.rm = TRUE)
-        call_up_errors <- sum(is.na(call_up)) +
-            sum(call_up > max_points, na.rm = TRUE)
-    }
-    # raised hand points
-    raised_hand <- lines[2]
-    if (raised_hand == "") {
-        raised_hand_points <- 0
-        raised_hand_errors <- 0L
-    } else {
-        raised_hand <- raised_hand |>
-            stringr::str_replace_all("(\\d),(\\d)", "\\1.\\2") |>
-            stringr::str_split_1("\\s+")
-        raised_hand <- suppressWarnings(as.numeric(raised_hand))
-        raised_hand_points <- sum(raised_hand, na.rm = TRUE)
-        raised_hand_errors <- sum(is.na(raised_hand)) +
-            sum(raised_hand > max_points, na.rm = TRUE)
-    }
-    # return
-    tibble::tibble(
-        input = line,
-        call_up_points = call_up_points,
-        number_of_excused_call_ups = number_of_excused_call_ups,
-        # call_up_errors = call_up_errors,
-        raised_hand_points = raised_hand_points,
-        # raised_hand_errors = raised_hand_errors,
-        errors = call_up_errors + raised_hand_errors
-    )
 }
 
 
@@ -369,37 +323,120 @@ read_points_from_blocks <- function(blocks) {
     },
     error = function(e) {
       logging::logerror(e)
-      no_of_errors <<- no_of_errors + 1
+      errs$no_of_errors <- no_of_errors + 1
       NULL
     }
   )
 }
 
 
-#' Get and process students' activity points.
-#' 
-#' @param ... credentials
-#' 
-#' @return some tibble
-get_activity_points <- function(...) {
-  blocks <- get_list_of_existing_notebooks(...)
-  activity_points <- read_points_from_blocks(blocks)
-  activity_points |>
-    dplyr::group_by(uco) |>
-    dplyr::arrange(block, .by_group = TRUE) |>
-    dplyr::summarize(
-      activity_string = stringr::str_c(
-        stringr::str_replace_na(points,
-          replacement = "-"
-        ),
-        collapse = " "
-      ),
-      activity_points = sum(points, na.rm = TRUE),
-      .groups = "drop"
-    ) |>
-    dplyr::rename(student_uco = uco)
+# see tests
+parse_point_line <- function(
+    line,
+    excused_call_up_sign = "X",
+    max_points = 5) {
+  # assume line is character scalar
+  stopifnot(is.character(line), length(line) == 1)
+  # split line into two parts: call up and raised hand points
+  lines <- line |>
+    stringr::str_split_fixed("\\|", 2) |>
+    _[1, ] |>
+    stringr::str_squish()
+  # call up points
+  call_up <- lines[1]
+  if (call_up == "") {
+    call_up_points <- 0
+    number_of_non_excused_call_ups <- 0L
+    number_of_excused_call_ups <- 0L
+    call_up_errors <- 0L
+  } else {
+    call_up <- call_up |> stringr::str_split_1("\\s+")
+    number_of_excused_call_ups <- sum(
+      call_up == excused_call_up_sign,
+      na.rm = TRUE
+    )
+    call_up <- call_up |>
+      purrr::keep(~ .x != excused_call_up_sign) |>
+      purrr::map(~ stringr::str_replace(.x, "(\\d),(\\d)", "\\1.\\2")) |>
+      purrr::map_dbl(~ suppressWarnings(as.numeric(.x)))
+    call_up_points <- sum(call_up, na.rm = TRUE)
+    number_of_non_excused_call_ups <- sum(!is.na(call_up))
+    call_up_errors <- sum(is.na(call_up)) +
+      sum(call_up > max_points, na.rm = TRUE)
+  }
+  # raised hand points
+  raised_hand <- lines[2]
+  if (raised_hand == "") {
+    raised_hand_points <- 0
+    raised_hand_errors <- 0L
+  } else {
+    raised_hand <- raised_hand |>
+      stringr::str_replace_all("(\\d),(\\d)", "\\1.\\2") |>
+      stringr::str_split_1("\\s+")
+    raised_hand <- suppressWarnings(as.numeric(raised_hand))
+    raised_hand_points <- sum(raised_hand, na.rm = TRUE)
+    raised_hand_errors <- sum(is.na(raised_hand)) +
+      sum(raised_hand > max_points, na.rm = TRUE)
+  }
+  # return
+  tibble::tibble(
+    input = line,
+    call_up_points = call_up_points,
+    number_of_non_excused_call_ups = number_of_non_excused_call_ups,
+    number_of_excused_call_ups = number_of_excused_call_ups,
+    # call_up_errors = call_up_errors,
+    raised_hand_points = raised_hand_points,
+    # raised_hand_errors = raised_hand_errors,
+    errors = call_up_errors + raised_hand_errors
+  )
 }
 
+
+#' Get and process students' activity points.
+#'
+#' @param ... credentials
+#' @param name_mask (string) regular expression that says how are named 
+#'   the notebooks where activity points are stored
+#'
+#' @return some tibble
+get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
+  blocks <- get_list_of_existing_notebooks(..., name_mask = name_mask)
+  activity_points <- read_points_from_blocks(blocks)
+  points <- activity_points$content |>
+    stringr::str_replace_na("") |>
+    purrr::map(parse_point_line) |>
+    dplyr::bind_rows()
+  activity_points <- dplyr::bind_cols(activity_points, points)
+  # log bugs in notebooks
+  misshaped <- activity_points |>
+    dplyr::filter(errors > 0)
+  for (k in seq_len(nrow(misshaped))) {
+    logging::logwarn(
+      "... activity points are crippled in course %s, notebook %s, uco %s: content '%s'",
+      misshaped$course[k],
+      misshaped$notebook[k],
+      misshaped$uco[k],
+      misshaped$content[k]
+    )
+  }
+  no_of_warnings <<- no_of_warnings + nrow(misshaped)
+  #
+  # activity_points |>
+  #   dplyr::group_by(uco) |>
+  #   dplyr::arrange(block, .by_group = TRUE) |>
+  #   dplyr::summarize(
+  #     activity_string = stringr::str_c(
+  #       stringr::str_replace_na(points,
+  #         replacement = "-"
+  #       ),
+  #       collapse = " "
+  #     ),
+  #     activity_points = sum(points, na.rm = TRUE),
+  #     .groups = "drop"
+  #   ) |>
+  #   dplyr::rename(student_uco = uco)
+  activity_points
+}
 
 
 # renegades -------------------------------------------------------------------
@@ -441,13 +478,13 @@ get_renegades <- function(...) {
                 "... the block 'renegades' does not exist for course %s.",
                 c$course
               )
-              no_of_warnings <<- no_of_warnings + 1
+              errs$no_of_warnings <<- no_of_warnings + 1
               empty
             }
           },
           error = function(e) {
             logging::logerror(e)
-            no_of_errors <<- no_of_errors + 1
+            errs$no_of_errors <- no_of_errors + 1
             empty
           }
         )
@@ -470,7 +507,7 @@ get_renegades <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      no_of_errors <<- no_of_errors + 1
+      errs$no_of_errors <- no_of_errors + 1
       integer(0)
     }
   )
@@ -514,6 +551,7 @@ get_attendance <- function(..., no_of_seminars, max_points_attendance) {
 
 # point augmentation ----------------------------------------------------------
 
+# TODO: must be completely rewritten
 augment_points <- function(students) {
   students |>
     dplyr::mutate(
@@ -532,7 +570,7 @@ augment_points <- function(students) {
 
 # point normalization -----------------------------------------------------
 
-# normalize points
+# normalize points in one group
 normalize_points_in_one_group <- function(
     ucos,
     raw_points,
@@ -551,7 +589,15 @@ normalize_points_in_one_group <- function(
   round(norm_points * max_points / 100)
 }
 
-
+#' Normalize points for activity on seminar.
+#'
+#' @param students (tibble)
+#' @param max_points_activity (number) maximum normalized points
+#'   for activity
+#' @param activity_const_a (number) normalization constant A
+#' @param activity_const_b (number) normalization constant B
+#'
+#' @return a tibble
 normalize_points <- function(
     students,
     max_points_activity,
@@ -616,7 +662,7 @@ safely_create_normalized_block <- function(name, shortcut, ...) {
         tryCatch(
           MUIS::create_notebook(c, name, shortcut, initialize = FALSE),
           error = function(e) {
-            no_of_errors <<- no_of_errors + 1
+            errs$no_of_errors <- no_of_errors + 1
             logging::logerror(e)
           }
         )
@@ -659,7 +705,7 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
         },
         error = function(e) {
           logging::logerror(e)
-          no_of_errors <<- no_of_errors + 1
+          errs$no_of_errors <- no_of_errors + 1
         }
       )
     }
@@ -683,6 +729,9 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
 #'   implicit value is 20
 #' @param activity_const_b (optional, number) normalization constant B;
 #'   implicit value is 120
+#' @param activity_name_mask (optional, string) regular expression that says
+#'   how are named the notebooks where activity points are stored;
+#'   implicitly "^bodysemin\\d{2}$",
 #' @param norm_name (optional, string) name of notebook with normalized points
 #' @param norm_block (optional, string) shortcut of notebook with normalized
 #'   points
@@ -702,6 +751,7 @@ normalize_micro <- function(
     max_points_activity = 24,
     activity_const_a = 20,
     activity_const_b = 120,
+    activity_name_mask = "^bodysemin\\d{2}$",
     norm_name = "Normované body za průběžnou práci na semináři",
     norm_block = "bodsemin",
     log_folder = "logs",
@@ -717,7 +767,7 @@ normalize_micro <- function(
     stringr::str_c("micro_normalization_", Sys.Date(), ".log")
   )
   logging::addHandler(logging::writeToFile, file = log_file)
-  no_of_errors <<- 0
+  errs$no_of_errors <- 0
   no_of_warnings <<- 0
   # log the start
   logging::loginfo(
@@ -739,7 +789,7 @@ normalize_micro <- function(
     # add activity points
     students <- students |>
       dplyr::left_join(
-        get_activity_points(...),
+        get_activity_points(..., name_mask = activity_name_mask),
         by = c("credentials", "student_uco")
       ) |>
       # augment them for illness and various number of examinations
@@ -768,7 +818,7 @@ normalize_micro <- function(
   logging::loginfo("Stopping Micro point normalization.")
   logging::loginfo(
     "Finished with %s errors and %s warnings",
-    no_of_errors, no_of_warnings
+    errs$no_of_errors, errs$no_of_warnings
   )
   # send mail
   create_and_send_mail(sender, recipient, log_file)
