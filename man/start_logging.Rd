@@ -12,7 +12,7 @@ start_logging(log_folder, norm_block)
 \item{norm_block}{(string) shortcut of notebook with normalized points}
 }
 \value{
-none, it only starts logging
+path to log_file
 }
 \description{
 \code{start_logging()} creates a log folder if necessary and starts logging into

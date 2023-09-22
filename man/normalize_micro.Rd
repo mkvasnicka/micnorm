@@ -19,7 +19,8 @@ normalize_micro(
   log_folder = "logs",
   group_file_name = "last_groupings.RData",
   sender = "847@muni.cz",
-  recipient = sender
+  recipient = sender,
+  export_to_IS = TRUE
 )
 }
 \arguments{
@@ -55,6 +56,13 @@ if it doesn't exist, it is created}
 
 \item{group_file_name}{(optional, string) name of file, where partial data
 are written}
+
+\item{sender}{(optional, string) email address of sender}
+
+\item{recipient}{(optional, string) email address of recipient}
+
+\item{export_to_IS}{(optional, logical) whether to export the data to IS;
+implicit value is TRUE}
 
 \item{`...`}{credentials separated by commas}
 }

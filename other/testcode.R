@@ -47,6 +47,7 @@ students <- students |>
   add_output_string()
 
 
+# ----------------------------
 
 
 blocks <- get_list_of_existing_notebooks(mivs, name_mask = activity_name_mask)
@@ -78,4 +79,15 @@ get_attendance(
   no_of_seminars = 12,
   max_points_attendance = 6,
   alt_attendance_notebook = "goonahr"
+)
+
+
+
+# ----------------------------
+
+
+students <- normalize_micro(mivs,
+  activity_name_mask = "goo\\d{2}",
+  alt_attendance_notebook = "goonahr",
+  export_to_IS = FALSE
 )

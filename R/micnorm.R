@@ -912,7 +912,7 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
           logging::loginfo("... writing course %s.", c$course)
           s <- students |>
             dplyr::filter(course == c$course) |>
-            dplyr::select(uco = student_uco, value = full_string)
+            dplyr::select(uco = student_uco, value = output_string)
           MUIS::write_notebook(c, norm_block, s)
         },
         error = function(e) {
@@ -936,7 +936,7 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
 #' @param log_folder (string) path to folder where logs are written
 #' @param norm_block (string) shortcut of notebook with normalized points
 #'
-#' @return none, it only starts logging
+#' @return path to log_file
 start_logging <- function(log_folder, norm_block) {
   # create log folder if necessary and start logging
   if (!dir.exists(log_folder)) {
@@ -959,6 +959,8 @@ start_logging <- function(log_folder, norm_block) {
     "I would write the normalize points to block with shortcut %s.",
     norm_block
   )
+  # return path to log_file
+  log_file
 }
 
 
@@ -990,6 +992,10 @@ start_logging <- function(log_folder, norm_block) {
 #'  if it doesn't exist, it is created
 #' @param group_file_name (optional, string) name of file, where partial data
 #'  are written
+#' @param sender (optional, string) email address of sender
+#' @param recipient (optional, string) email address of recipient
+#' @param export_to_IS (optional, logical) whether to export the data to IS;
+#'  implicit value is TRUE
 #'
 #' @return (silently) tibble with data created
 #' 
@@ -1010,8 +1016,9 @@ normalize_micro <- function(
     log_folder = "logs",
     group_file_name = "last_groupings.RData",
     sender = "847@muni.cz",
-    recipient = sender) {
-  start_logging(log_folder, norm_block)
+    recipient = sender,
+    export_to_IS = TRUE) {
+  log_file <- start_logging(log_folder, norm_block)
   try({
     # get renegades (i.e. students that stopped working within the term)
     renegades <- get_renegades(...)
@@ -1048,7 +1055,7 @@ normalize_micro <- function(
       # add output string
       add_output_string()
     # create blocks for normalization and write the normalized points to IS
-    if (the$no_of_errors == 0) {
+    if (export_to_IS && the$no_of_errors == 0) {
       write_data_to_is(students, norm_name, norm_block, ...)
     }
   })
