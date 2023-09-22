@@ -943,9 +943,15 @@ start_logging <- function(log_folder, norm_block) {
     dir.create(log_folder)
   }
   # start logging into a file
+  current_time <- Sys.time() |>
+    as.character() |>
+    stringr::str_remove("\\a+$") |>
+    stringr::str_remove("\\.\\d+\\s*$") |>
+    stringr::str_replace_all(":", "-") |>
+    stringr::str_replace_all("\\s+", "_")
   log_file <- file.path(
     log_folder,
-    stringr::str_c("micro_normalization_", Sys.Date(), ".log")
+    stringr::str_c("micro_normalization_", current_time, ".log")
   )
   logging::addHandler(logging::writeToFile, file = log_file)
   the$no_of_errors <- 0
