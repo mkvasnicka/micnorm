@@ -29,9 +29,6 @@ students <- students |>
 students <- students |>
   normalize_points(24, 20, 120)
 
-students <- students |>
-  add_activity_string()
-
 attendance <- get_attendance(
           micro, mivs,
           no_of_seminars = 12,
@@ -43,3 +40,31 @@ students <- dplyr::left_join(
   attendance,
   by = c("credentials", "student_uco")
 )
+
+students <- students |>
+  add_output_string()
+
+
+
+
+
+blocks <- get_list_of_existing_notebooks(mivs, name_mask = activity_name_mask)
+activity_points <- read_points_from_blocks(blocks)
+points <- activity_points$content |>
+  stringr::str_replace_na("") |>
+  purrr::map(parse_point_line) |>
+  dplyr::bind_rows()
+activity_points <- dplyr::bind_cols(activity_points, points)
+
+
+activity_points |>
+  dplyr::group_by(credentials, uco) |>
+  dplyr::arrange(credentials, uco, notebook, .by_group = TRUE) |>
+  dplyr::summarize(
+    point_string = stringr::str_c(
+      "(", stringr::str_extract(notebook, "\\d{2}"), ") ",
+      input,
+      collapse = " || "),
+      .groups = "drop"
+  ) |> 
+  dplyr::mutate(point_string = stringr::str_squish(point_string))

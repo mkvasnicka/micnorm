@@ -21,6 +21,7 @@ tibble with following columns:
 \item number_of_non_excused_call_ups
 \item number_of_excused_call_ups
 \item raised_hand_points
+\item activity_point_string
 }
 }
 \description{

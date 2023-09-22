@@ -437,6 +437,7 @@ parse_point_line <- function(
 #' - number_of_non_excused_call_ups
 #' - number_of_excused_call_ups
 #' - raised_hand_points
+#' - activity_point_string
 get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
   blocks <- get_list_of_existing_notebooks(..., name_mask = name_mask)
   activity_points <- read_points_from_blocks(blocks)
@@ -450,7 +451,10 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
     dplyr::filter(errors > 0)
   for (k in seq_len(nrow(misshaped))) {
     logging::logwarn(
-      "... activity points are crippled in course %s, notebook %s, uco %s: content '%s'",
+      stringr::str_c(
+        "... activity points are crippled in course %s,",
+        " notebook %s, uco %s: content '%s'"
+      ),
       misshaped$course[k],
       misshaped$notebook[k],
       misshaped$uco[k],
@@ -458,8 +462,23 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
     )
   }
   errs$no_of_warnings <- errs$no_of_warnings + nrow(misshaped)
+  #
+  point_string <- activity_points |>
+    dplyr::group_by(credentials, uco) |>
+    dplyr::arrange(credentials, uco, notebook, .by_group = TRUE) |>
+    dplyr::summarize(
+      activity_point_string = stringr::str_c(
+        "(", stringr::str_extract(notebook, "\\d{2}"), ") ",
+        input,
+        collapse = " || "
+      ),
+      .groups = "drop"
+    ) |>
+    dplyr::mutate(
+      activity_point_string = stringr::str_squish(activity_point_string)
+    )
   # aggregation
-  activity_points |>
+  activity_points <- activity_points |>
     dplyr::group_by(credentials, uco) |>
     dplyr::summarize(
       call_up_points = sum(call_up_points, na.rm = TRUE),
@@ -473,8 +492,14 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
       ),
       raised_hand_points = sum(raised_hand_points, na.rm = TRUE)
     ) |>
-    dplyr::ungroup() |>
-    dplyr::rename(student_uco = uco)
+    dplyr::ungroup()
+  #
+  dplyr::left_join(
+    activity_points,
+    point_string,
+    by = c("credentials", "uco")
+  ) |>
+    dplyr::rename(student_uco = "uco")
 }
 
 
@@ -711,7 +736,7 @@ add_output_string <- function(students) {
         number_of_non_excused_call_ups + number_of_excused_call_ups,
         " z toho omluveno: ", number_of_excused_call_ups, ".\n",
         "Maximální počet vyvolání ve skupině: ", max_calls, ".\n",
-        # "(body: ", NULL, ")"
+        "Body: ", activity_point_string, ".\n",
         "\n",
         #
         # attendance
