@@ -62,10 +62,19 @@ mivs <- credentials(
 )
 ```
 
+When two courses are linked, you must create a mapping between them, i.e., which seminar in the source course corresponds to which seminar in the target course. This is done using a tibble with three columns: `course`, `source_seminar`, and `target_seminar`. Here I create a mapping between the two courses above:
+
+```{r, eval = EVAL}
+mivsmicro <- tibble::tribble(
+  ~course, ~source_seminar, ~target_seminar,
+  "MPE_MIVS", "01", "26"
+)
+```
+
 ## Usage
 
-```{r setup}
-normalize_micro(micro, mivs)
+```{r, eval = EVAL}
+normalize_micro(micro, mivs, course_mapping = mivsmicro)
 ```
 
 See help for other parameters.

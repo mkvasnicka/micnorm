@@ -229,6 +229,35 @@ get_students_attached_to_teachers <- function(...) {
 }
 
 
+#' If there are more courses, join their seminars.
+#'
+#' `unite_courses()` joins seminars of several courses if they are the same
+#' (e.g. BPE_MIE1 and MPE_MIVS)
+#'
+#' @param students (tibble) students
+#' @param mapping (tibble) mapping of courses; must include columns:
+#'  - course,
+#' - source_seminar, and
+#' - target_seminar
+#' 
+#' @return a tibble with the same columns as `students`
+#' 
+#' @details if `mapping` is `NULL`, it returns `students` unchanged
+unite_courses <- function(students, mapping) {
+  if (is.null(mapping)) {
+    return(students)
+  }
+  dplyr::left_join(
+    students,
+    mapping,
+    by = c("course", "seminar" = "source_seminar")
+  ) |>
+    dplyr::mutate(
+      seminar = dplyr::if_else(is.na(target_seminar), seminar, target_seminar)
+    )
+}
+
+
 
 # activity points -------------------------------------------------------------
 
@@ -726,6 +755,8 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
 #' Read IS notebooks, normalize students' points, and write it back to IS.
 #'
 #' @param `...` credentials separated by commas
+#' @param course_mapping (optional, tibble) mapping of courses; must include
+#'   columns: course, source_seminar, and target_seminar
 #' @param no_of_seminars (optional, integer) number of seminars in the given
 #'   year; implicit value is 12L
 #' @param max_points_attendance (optional, number) maximum normalized points
@@ -753,6 +784,7 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
 #
 normalize_micro <- function(
     ...,
+    course_mapping = NULL,
     no_of_seminars = 12L,
     max_points_attendance = 6,
     max_points_activity = 24,
@@ -791,7 +823,8 @@ normalize_micro <- function(
     # get the data on students and teachers, join them, and save
     # saving needed because after the end of the term some students may drop
     # and the later computation would be off
-    students <- get_students_attached_to_teachers(...)
+    students <- get_students_attached_to_teachers(...) |> 
+      unite_courses(course_mapping)
     save(students, file = group_file_name)
     # add activity points
     students <- students |>

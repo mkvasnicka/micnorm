@@ -6,6 +6,7 @@
 \usage{
 normalize_micro(
   ...,
+  course_mapping = NULL,
   no_of_seminars = 12L,
   max_points_attendance = 6,
   max_points_activity = 24,
@@ -21,6 +22,9 @@ normalize_micro(
 )
 }
 \arguments{
+\item{course_mapping}{(optional, tibble) mapping of courses; must include
+columns: course, source_seminar, and target_seminar}
+
 \item{no_of_seminars}{(optional, integer) number of seminars in the given
 year; implicit value is 12L}
 
