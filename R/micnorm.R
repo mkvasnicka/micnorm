@@ -67,6 +67,8 @@ create_and_send_mail <- function(sender, recipient, log_file) {
     subject = mail_subject,
     body = stringr::str_c(
       mail_subject,
+      if (errs$no_of_errors > 0)
+        "\n\nData are NOT written to IS!",
       "\n\n\n",
       "Number of errors: ", errs$no_of_errors, "\n",
       "Number of warnings: ", errs$no_of_warnings, "\n",
@@ -795,7 +797,7 @@ normalize_micro <- function(
     norm_block = "bodsemin",
     log_folder = "logs",
     group_file_name = "last_groupings.RData",
-    sender  = "847@muni.cz",
+    sender = "847@muni.cz",
     recipient = sender) {
   # create log folder if necessary and start logging
   if (!dir.exists(log_folder)) {
@@ -823,7 +825,7 @@ normalize_micro <- function(
     # get the data on students and teachers, join them, and save
     # saving needed because after the end of the term some students may drop
     # and the later computation would be off
-    students <- get_students_attached_to_teachers(...) |> 
+    students <- get_students_attached_to_teachers(...) |>
       unite_courses(course_mapping)
     save(students, file = group_file_name)
     # add activity points
@@ -850,9 +852,11 @@ normalize_micro <- function(
         by = c("credentials", "student_uco")
       ) |>
       # add output string
-      add_output_string() |>
-      # create blocks for normalization and write the normalized points to IS
-      write_data_to_is(norm_name, norm_block, ...)
+      add_output_string()
+    # create blocks for normalization and write the normalized points to IS
+    if (errs$no_of_errors == 0) {
+      write_data_to_is(students, norm_name, norm_block, ...)
+    }
   })
   # log the end
   logging::loginfo("Stopping Micro point normalization.")
