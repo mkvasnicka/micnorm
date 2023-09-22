@@ -25,3 +25,9 @@ students <- students |>
 
 students <- students |>
   augment_points()
+
+students <- students |>
+  normalize_points(24, 20, 120)
+
+students <- students |>
+  add_activity_string()

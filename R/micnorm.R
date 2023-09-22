@@ -609,8 +609,7 @@ augment_points <- function(students) {
       raw_points = dplyr::if_else(is.finite(raw_points), raw_points, 0),
       raw_points = raw_points + raised_hand_points
     ) |> 
-    dplyr::ungroup() |>
-    dplyr::select(-max_calls)
+    dplyr::ungroup()
 }
 
 
@@ -626,8 +625,8 @@ normalize_points_in_one_group <- function(
     b,
     max_points) {
   valid <- !(ucos %in% renegades)
-  mean_points <- mean(raw_points[valid])
-  sd_points <- stats::sd(raw_points[valid])
+  mean_points <- mean(raw_points[valid], na.rm = TRUE)
+  sd_points <- stats::sd(raw_points[valid], na.rm = TRUE)
   c1 <- (a + b) / 2
   c2 <- (b - a) / (4 * sd_points)
   norm_points <- (c1 + c2 * (raw_points - mean_points))
@@ -667,18 +666,63 @@ normalize_points <- function(
 
 
 
-# output string ---------------------------------------------------------------
+# output strings --------------------------------------------------------------
+
+#' Format number.
+#'
+#' `format_number()` formats a number for output string---it replaces NA and
+#' Inf with 0 and rounds the number to 3 decimal places.
+#'
+#' @param x (number) number to be formatted
+#'
+#' @return a number
+format_number <- function(x) {
+  dplyr::if_else(is.na(x) | is.infinite(x), 0, x) |> 
+    round(3)
+}
+
+
+#' Add string describing students' activity.
+#'
+#' `add_activity_string()` adds a string describing students' activity to
+#' students' tibble.
+#'
+#' @param students (tibble) students
+#'
+#' @return a tibble with same columns as students + activity_string
+add_activity_string <- function(students) {
+  students |>
+    dplyr::mutate(
+      activity_string = stringr::str_c(
+        "Normované body za aktivitu: ", format_number(norm_points), ".\n",
+        "Přepočtené body za aktivitu: ", format_number(raw_points), ".\n",
+        "Hrubé body za vyvolání: ", format_number(call_up_points), ".\n",
+        "Hrubé body za přihlášení se: ",
+        format_number(raised_hand_points),
+        ".\n",
+        "Počet vyvolání: ",
+        number_of_non_excused_call_ups + number_of_excused_call_ups,
+        " z toho omluveno: ", number_of_excused_call_ups, ".\n",
+        "Maximální počet vyvolání ve skupině: ", max_calls, ".\n"  #,
+        #"(body: ", NULL, ")"
+      )
+    )
+}
+
 
 add_output_string <- function(students) {
-  dplyr::mutate(full_string = stringr::str_c(
-    "Body za účast: ", attendance_points,
-    " (omluveno: ", excused, ")\n",
-    "(účast: ", attendance_string, ")\n\n",
-    "Body za aktivitu: ", round(activity_points, 1), "\n",
-    "(body: ", activity_string, ")\n\n",
-    "Hrubé body za účast a aktivitu: ", round(raw_points, 1), "\n",
-    "Normované body za účast a aktivitu: *", norm_points
-  ))
+  students |>
+    dplyr::mutate(
+      full_string = stringr::str_c(
+        "Body za účast: ", attendance_points,
+        " (omluveno: ", excused, ")\n",
+        "(účast: ", attendance_string, ")\n\n",
+        "Body za aktivitu: ", round(activity_points, 1), "\n",
+        "(body: ", activity_string, ")\n\n",
+        "Hrubé body za účast a aktivitu: ", round(raw_points, 1), "\n",
+        "Normované body za účast a aktivitu: *", norm_points
+      )
+    )
 }
 
 
@@ -879,6 +923,7 @@ normalize_micro <- function(
         by = c("credentials", "student_uco")
       ) |>
       # add output string
+      add_activity_string() |>
       add_output_string()
     # create blocks for normalization and write the normalized points to IS
     if (errs$no_of_errors == 0) {
