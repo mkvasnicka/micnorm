@@ -4,7 +4,12 @@
 \alias{get_attendance}
 \title{Get and normalize attendance in several courses.}
 \usage{
-get_attendance(..., no_of_seminars, max_points_attendance)
+get_attendance(
+  ...,
+  no_of_seminars,
+  max_points_attendance,
+  alt_attendance_notebook
+)
 }
 \arguments{
 \item{...}{credentials separated by commas}

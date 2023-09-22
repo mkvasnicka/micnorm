@@ -13,6 +13,7 @@ normalize_micro(
   activity_const_a = 20,
   activity_const_b = 120,
   activity_name_mask = "^bodysemin\\\\d{2}$",
+  alt_attendance_notebook = "preznahr",
   norm_name = "Normované body za průběžnou práci na semináři",
   norm_block = "bodsemin",
   log_folder = "logs",

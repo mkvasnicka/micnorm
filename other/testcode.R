@@ -3,7 +3,8 @@ library(devtools)
 document()
 load_all()
 
-activity_name_mask <- "goo\\d{2}"  # "^bodysemin\\d{2}$"
+activity_name_mask <- "goo\\d{2}" # "^bodysemin\\d{2}$"
+alt_attendance_notebook <- "goonahr"
 
 mivs <- credentials("T_EVbceQ0fdFaulj", 1456, "MPE_MIVS")
 micro <- credentials("Z6o4VCwTOPPYGWI9", 1456, "BPE_MIE1")
@@ -15,13 +16,13 @@ mivsmicro <- tibble::tribble(
 
 renegades <- get_renegades(micro, mivs)
 students <- get_students_attached_to_teachers(micro, mivs) |>
-      unite_courses(mivsmicro)
+  unite_courses(mivsmicro)
 
 students <- students |>
-      dplyr::left_join(
-        get_activity_points(micro, mivs, name_mask = activity_name_mask),
-        by = c("credentials", "student_uco")
-      )
+  dplyr::left_join(
+    get_activity_points(micro, mivs, name_mask = activity_name_mask),
+    by = c("credentials", "student_uco")
+  )
 
 students <- students |>
   augment_points()
@@ -30,10 +31,11 @@ students <- students |>
   normalize_points(24, 20, 120)
 
 attendance <- get_attendance(
-          micro, mivs,
-          no_of_seminars = 12,
-          max_points_attendance = 6
-        )
+  micro, mivs,
+  no_of_seminars = 12,
+  max_points_attendance = 6,
+  alt_attendance_notebook = alt_attendance_notebook
+)
 
 students <- dplyr::left_join(
   students,
@@ -43,7 +45,6 @@ students <- dplyr::left_join(
 
 students <- students |>
   add_output_string()
-
 
 
 
@@ -68,3 +69,13 @@ activity_points |>
       .groups = "drop"
   ) |> 
   dplyr::mutate(point_string = stringr::str_squish(point_string))
+
+
+get_alternative_attendance(mivs, alt_attendance_notebook = "goonahr")
+
+get_attendance(
+  mivs,
+  no_of_seminars = 12,
+  max_points_attendance = 6,
+  alt_attendance_notebook = "goonahr"
+)

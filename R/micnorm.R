@@ -1,8 +1,8 @@
 # errors and warnings logging -------------------------------------------------
 
-errs <- new.env(parent = emptyenv())
-errs$no_of_errors <- 0
-errs$no_of_warnings <- 0
+the <- new.env(parent = emptyenv())
+the$no_of_errors <- 0
+the$no_of_warnings <- 0
 
 
 
@@ -59,7 +59,7 @@ send_mail <- function(
 #'
 #' @return none -- it only sends the mail
 create_and_send_mail <- function(sender, recipient, log_file) {
-  mail_subject <- ifelse(errs$no_of_errors == 0,
+  mail_subject <- ifelse(the$no_of_errors == 0,
     "Mikro: Seminar points normalization -- everything is o.k.",
     "Mikro: BEWARE: Seminar points normalization failed!"
   )
@@ -67,11 +67,11 @@ create_and_send_mail <- function(sender, recipient, log_file) {
     subject = mail_subject,
     body = stringr::str_c(
       mail_subject,
-      if (errs$no_of_errors > 0)
+      if (the$no_of_errors > 0)
         "\n\nData are NOT written to IS!",
       "\n\n\n",
-      "Number of errors: ", errs$no_of_errors, "\n",
-      "Number of warnings: ", errs$no_of_warnings, "\n",
+      "Number of errors: ", the$no_of_errors, "\n",
+      "Number of warnings: ", the$no_of_warnings, "\n",
       "\n\n\n",
       readr::read_file(log_file)
     ),
@@ -121,7 +121,7 @@ get_all_students <- function(...) {
           MUIS::get_seminar_students(c),
           error = function(e) {
             logging::logerror(e)
-            errs$no_of_errors <- errs$no_of_errors + 1
+            the$no_of_errors <- the$no_of_errors + 1
             NULL
           }
         )
@@ -138,7 +138,7 @@ get_all_students <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- errs$no_of_errors + 1
+      the$no_of_errors <- the$no_of_errors + 1
       NULL
     }
   )
@@ -180,7 +180,7 @@ get_all_teachers <- function(...) {
           MUIS::get_teachers(c),
           error = function(e) {
             logging::logerror(e)
-            errs$no_of_errors <- errs$no_of_errors + 1
+            the$no_of_errors <- the$no_of_errors + 1
             NULL
           }
         )
@@ -197,7 +197,7 @@ get_all_teachers <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- errs$no_of_errors + 1
+      the$no_of_errors <- the$no_of_errors + 1
       NULL
     }
   )
@@ -303,7 +303,7 @@ get_list_of_existing_notebooks <- function(
           MUIS::list_notebooks(c),
           error = function(e) {
             logging::logerror(e)
-            errs$no_of_errors <- errs$no_of_errors + 1
+            the$no_of_errors <- the$no_of_errors + 1
             NULL
           }
         )
@@ -314,7 +314,7 @@ get_list_of_existing_notebooks <- function(
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- errs$no_of_errors + 1
+      the$no_of_errors <- the$no_of_errors + 1
       NULL
     }
   )
@@ -355,7 +355,7 @@ read_points_from_blocks <- function(blocks) {
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- errs$no_of_errors + 1
+      the$no_of_errors <- the$no_of_errors + 1
       NULL
     }
   )
@@ -461,7 +461,7 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
       misshaped$content[k]
     )
   }
-  errs$no_of_warnings <- errs$no_of_warnings + nrow(misshaped)
+  the$no_of_warnings <- the$no_of_warnings + nrow(misshaped)
   #
   point_string <- activity_points |>
     dplyr::group_by(credentials, uco) |>
@@ -542,13 +542,13 @@ get_renegades <- function(...) {
                 "... the block 'renegades' does not exist for course %s.",
                 c$course
               )
-              errs$no_of_warnings <<- errs$no_of_warnings + 1
+              the$no_of_warnings <<- the$no_of_warnings + 1
               empty
             }
           },
           error = function(e) {
             logging::logerror(e)
-            errs$no_of_errors <- errs$no_of_errors + 1
+            the$no_of_errors <- the$no_of_errors + 1
             empty
           }
         )
@@ -563,7 +563,7 @@ get_renegades <- function(...) {
           "... strange renegade coding for UCOs %s.",
           stringr::str_c(strange, collapse = ", ")
         )
-        errs$no_of_warnings <- errs$no_of_warnings + 1
+        the$no_of_warnings <- the$no_of_warnings + 1
       }
       renegades |>
         dplyr::filter(stringr::str_detect(content, "^[Xx]$")) |>
@@ -571,7 +571,7 @@ get_renegades <- function(...) {
     },
     error = function(e) {
       logging::logerror(e)
-      errs$no_of_errors <- errs$no_of_errors + 1
+      the$no_of_errors <- the$no_of_errors + 1
       integer(0)
     }
   )
@@ -580,6 +580,91 @@ get_renegades <- function(...) {
 
 
 # attendance ------------------------------------------------------------------
+
+#' Get alternative attendance points from IS.
+#'
+#' `get_alternative_attendance()` downloads alternative attendance points
+#' from IS.
+#'
+#' @param ... credentials
+#' @param alt_attendance_notebook (string) name of the notebook where
+#'  alternative attendance points are stored
+#'
+#' @return a tibble with following columns:
+#' - course,
+#' - student_uco,
+#' - alt_attendance_points
+get_alternative_attendance <- function(..., alt_attendance_notebook) {
+  empty_tab <- tibble::tibble(
+    course = character(0),
+    uco = integer(0),
+    content = character(0)
+  )
+  f <- function(c, alt_attendance_notebook) {
+    if (MUIS::notebook_exists(c, alt_attendance_notebook)) {
+      logging::loginfo(
+        "... downloading alternative attendance in course %s.",
+        c$course
+      )
+      tryCatch(
+        MUIS::read_notebook(c, alt_attendance_notebook),
+        error = function(e) {
+          logging::logerror(e)
+          the$no_of_errors <- the$no_of_errors + 1
+          NULL
+        }
+      )
+    } else {
+      logging::logwarn(
+        "... the block '%s' does not exist for course %s.",
+        alt_attendance_notebook, c$course
+      )
+      the$no_of_warnings <- the$no_of_warnings + 1
+      NULL
+    }
+  }
+  creds <- list(...)
+  alt_attendance <- purrr::map(creds, f, alt_attendance_notebook) |>
+    dplyr::bind_rows(empty_tab) |>
+    dplyr::mutate(
+      content = stringr::str_replace_na(content, ""),
+      content = stringr::str_squish(content),
+      alt_attendance_points = dplyr::if_else(
+        content == "",
+        0L,
+        suppressWarnings(as.integer(content))
+      )
+    )
+  #
+  misshaped <- alt_attendance |>
+    dplyr::filter(is.na(alt_attendance_points))
+  for (r in nrow(misshaped)) {
+    logging::logwarn(
+      stringr::str_c(
+        "... alternative attendance points are crippled in course %s,",
+        " uco %s: content '%s'"
+      ),
+      misshaped$course[r],
+      misshaped$uco[r],
+      misshaped$content[r]
+    )
+  }
+  the$no_of_warnings <- the$no_of_warnings + nrow(misshaped)
+  #
+  alt_attendance |>
+    dplyr::mutate(
+      alt_attendance_points = dplyr::if_else(
+        is.na(alt_attendance_points),
+        0L,
+        alt_attendance_points
+      )
+    ) |>
+    dplyr::select(
+      course,
+      student_uco = uco,
+      alt_attendance_points
+    )
+}
 
 #' Get and normalize attendance in several courses.
 #'
@@ -592,12 +677,23 @@ get_renegades <- function(...) {
 #' - attendance_points,
 #' - normalized_attendance, and
 #' - credentials
-get_attendance <- function(..., no_of_seminars, max_points_attendance) {
+get_attendance <- function(
+    ...,
+    no_of_seminars,
+    max_points_attendance,
+    alt_attendance_notebook) {
   creds <- list(...)
+  alt <- get_alternative_attendance(
+    ...,
+    alt_attendance_notebook = alt_attendance_notebook
+  )
   purrr::map(creds, MUIS::read_all_presence_points) |>
     dplyr::bind_rows() |>
     dplyr::rename(student_uco = uco) |>
+    dplyr::left_join(alt, by = c("course", "student_uco")) |>
     dplyr::mutate(
+      attendance_points = attendance_points +
+        dplyr::if_else(is.na(alt_attendance_points), 0, alt_attendance_points),
       normalized_attendance = attendance_points * max_points_attendance /
         no_of_seminars
     ) |>
@@ -606,6 +702,7 @@ get_attendance <- function(..., no_of_seminars, max_points_attendance) {
       student_uco,
       attendance_string,
       attendance_points,
+      alt_attendance_points,
       normalized_attendance,
       dplyr::everything()
     )
@@ -733,8 +830,8 @@ add_output_string <- function(students) {
         format_number(raised_hand_points),
         ".\n",
         "Počet vyvolání: ",
-        number_of_non_excused_call_ups + number_of_excused_call_ups,
-        " z toho omluveno: ", number_of_excused_call_ups, ".\n",
+        number_of_non_excused_call_ups + number_of_excused_call_ups, ", ",
+        "z toho omluveno: ", number_of_excused_call_ups, ".\n",
         "Maximální počet vyvolání ve skupině: ", max_calls, ".\n",
         "Body: ", activity_point_string, ".\n",
         "\n",
@@ -743,7 +840,8 @@ add_output_string <- function(students) {
         "Normované body za účast: ",
         format_number(normalized_attendance),
         ".\n",
-        "Počet účastí: ", attendance_points, ".\n",
+        "Počet účastí: ", attendance_points, ", ",
+        "z toho náhradní termín: ", alt_attendance_points, ".\n",
         "(účast: ", attendance_string, ")\n"
       )
     )
@@ -776,7 +874,7 @@ safely_create_normalized_block <- function(name, shortcut, ...) {
         tryCatch(
           MUIS::create_notebook(c, name, shortcut, initialize = FALSE),
           error = function(e) {
-            errs$no_of_errors <- errs$no_of_errors + 1
+            the$no_of_errors <- the$no_of_errors + 1
             logging::logerror(e)
           }
         )
@@ -819,7 +917,7 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
         },
         error = function(e) {
           logging::logerror(e)
-          errs$no_of_errors <- errs$no_of_errors + 1
+          the$no_of_errors <- the$no_of_errors + 1
         }
       )
     }
@@ -850,8 +948,8 @@ start_logging <- function(log_folder, norm_block) {
     stringr::str_c("micro_normalization_", Sys.Date(), ".log")
   )
   logging::addHandler(logging::writeToFile, file = log_file)
-  errs$no_of_errors <- 0
-  errs$no_of_warnings <- 0
+  the$no_of_errors <- 0
+  the$no_of_warnings <- 0
   # log the start
   logging::loginfo(
     "Starting Micro point normalization on %s.",
@@ -906,6 +1004,7 @@ normalize_micro <- function(
     activity_const_a = 20,
     activity_const_b = 120,
     activity_name_mask = "^bodysemin\\d{2}$",
+    alt_attendance_notebook = "preznahr",
     norm_name = "Normované body za průběžnou práci na semináři",
     norm_block = "bodsemin",
     log_folder = "logs",
@@ -941,14 +1040,15 @@ normalize_micro <- function(
         get_attendance(
           ...,
           no_of_seminars = no_of_seminars,
-          max_points_attendance = max_points_attendance
+          max_points_attendance = max_points_attendance,
+          alt_attendance_notebook = alt_attendance_notebook
         ),
         by = c("credentials", "student_uco")
       ) |>
       # add output string
       add_output_string()
     # create blocks for normalization and write the normalized points to IS
-    if (errs$no_of_errors == 0) {
+    if (the$no_of_errors == 0) {
       write_data_to_is(students, norm_name, norm_block, ...)
     }
   })
@@ -956,7 +1056,7 @@ normalize_micro <- function(
   logging::loginfo("Stopping Micro point normalization.")
   logging::loginfo(
     "Finished with %s errors and %s warnings",
-    errs$no_of_errors, errs$no_of_warnings
+    the$no_of_errors, the$no_of_warnings
   )
   # send mail
   create_and_send_mail(sender, recipient, log_file)
