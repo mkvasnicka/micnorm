@@ -256,7 +256,8 @@ unite_courses <- function(students, mapping) {
   ) |>
     dplyr::mutate(
       seminar = dplyr::if_else(is.na(target_seminar), seminar, target_seminar)
-    )
+    ) |> 
+    dplyr::select(-target_seminar)
 }
 
 
@@ -589,19 +590,27 @@ get_attendance <- function(..., no_of_seminars, max_points_attendance) {
 
 # point augmentation ----------------------------------------------------------
 
-# TODO: must be completely rewritten
+#' Augment activity points for different number of call ups and for illness.
+#' 
+#' `augment_points()` augments activity points for different number of call ups.
+#'
+#' @param students (tibble) students
+#'
+#' @return a tibble with same columns as students + raw_points
 augment_points <- function(students) {
   students |>
+    dplyr::group_by(teacher_uco) |>
     dplyr::mutate(
-      activity_points_augmented = activity_points * no_of_seminars /
-        (no_of_seminars - excused),
-      activity_points_augmented = dplyr::if_else(
-        is.nan(activity_points_augmented),
-        activity_points,
-        activity_points_augmented
+      max_calls = max(
+        number_of_non_excused_call_ups + number_of_excused_call_ups,
+        na.rm = TRUE
       ),
-      raw_points = attendance_points + activity_points_augmented
-    )
+      raw_points = call_up_points / number_of_non_excused_call_ups * max_calls,
+      raw_points = dplyr::if_else(is.finite(raw_points), raw_points, 0),
+      raw_points = raw_points + raised_hand_points
+    ) |> 
+    dplyr::ungroup() |>
+    dplyr::select(-max_calls)
 }
 
 
