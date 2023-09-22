@@ -761,6 +761,43 @@ write_data_to_is <- function(students, norm_name, norm_block, ...) {
 
 
 
+# logging ---------------------------------------------------------------------
+
+#' Start logging.
+#'
+#' `start_logging()` creates a log folder if necessary and starts logging into
+#' a file. It also logs the start of the script.
+#'
+#' @param log_folder (string) path to folder where logs are written
+#' @param norm_block (string) shortcut of notebook with normalized points
+#'
+#' @return none, it only starts logging
+start_logging <- function(log_folder, norm_block) {
+  # create log folder if necessary and start logging
+  if (!dir.exists(log_folder)) {
+    dir.create(log_folder)
+  }
+  # start logging into a file
+  log_file <- file.path(
+    log_folder,
+    stringr::str_c("micro_normalization_", Sys.Date(), ".log")
+  )
+  logging::addHandler(logging::writeToFile, file = log_file)
+  errs$no_of_errors <- 0
+  errs$no_of_warnings <- 0
+  # log the start
+  logging::loginfo(
+    "Starting Micro point normalization on %s.",
+    Sys.info()["nodename"]
+  )
+  logging::loginfo(
+    "I would write the normalize points to block with shortcut %s.",
+    norm_block
+  )
+}
+
+
+
 # main function ---------------------------------------------------------------
 
 #' Read IS notebooks, normalize students' points, and write it back to IS.
@@ -808,26 +845,7 @@ normalize_micro <- function(
     group_file_name = "last_groupings.RData",
     sender = "847@muni.cz",
     recipient = sender) {
-  # create log folder if necessary and start logging
-  if (!dir.exists(log_folder)) {
-    dir.create(log_folder)
-  }
-  log_file <- file.path(
-    log_folder,
-    stringr::str_c("micro_normalization_", Sys.Date(), ".log")
-  )
-  logging::addHandler(logging::writeToFile, file = log_file)
-  errs$no_of_errors <- 0
-  errs$no_of_warnings <- 0
-  # log the start
-  logging::loginfo(
-    "Starting Micro point normalization on %s.",
-    Sys.info()["nodename"]
-  )
-  logging::loginfo(
-    "I would write the normalize points to block with shortcut %s.",
-    norm_block
-  )
+  start_logging(log_folder, norm_block)
   try({
     # get renegades (i.e. students that stopped working within the term)
     renegades <- get_renegades(...)
