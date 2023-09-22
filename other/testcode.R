@@ -86,7 +86,16 @@ get_attendance(
 # ----------------------------
 
 
-students <- normalize_micro(mivs,
+students <- normalize_micro(
+  mivs,
+  activity_name_mask = "goo\\d{2}",
+  alt_attendance_notebook = "goonahr",
+  export_to_IS = FALSE
+)
+
+students <- normalize_micro(
+  mivs, micro,
+  course_mapping = mivsmicro,
   activity_name_mask = "goo\\d{2}",
   alt_attendance_notebook = "goonahr",
   export_to_IS = FALSE
