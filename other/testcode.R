@@ -31,3 +31,15 @@ students <- students |>
 
 students <- students |>
   add_activity_string()
+
+attendance <- get_attendance(
+          micro, mivs,
+          no_of_seminars = 12,
+          max_points_attendance = 6
+        )
+
+students <- dplyr::left_join(
+  students,
+  attendance,
+  by = c("credentials", "student_uco")
+)

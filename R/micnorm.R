@@ -682,18 +682,25 @@ format_number <- function(x) {
 }
 
 
-#' Add string describing students' activity.
+#' Add string describing students' activity and attendance.
 #'
-#' `add_activity_string()` adds a string describing students' activity to
-#' students' tibble.
+#' `add_output_string()` adds a string describing students' activity 
+#' and attendance to students' tibble.
 #'
 #' @param students (tibble) students
 #'
-#' @return a tibble with same columns as students + activity_string
-add_activity_string <- function(students) {
+#' @return a tibble with same columns as students + output_string
+add_output_string <- function(students) {
   students |>
     dplyr::mutate(
-      activity_string = stringr::str_c(
+      output_string = stringr::str_c(
+        # total points
+        "Normované body za účast a práci na semináři: *",
+        round(norm_points + normalized_attendance),
+        ". Z toho:\n",
+        "\n",
+        #
+        # activity
         "Normované body za aktivitu: ", format_number(norm_points), ".\n",
         "Přepočtené body za aktivitu: ", format_number(raw_points), ".\n",
         "Hrubé body za vyvolání: ", format_number(call_up_points), ".\n",
@@ -703,28 +710,19 @@ add_activity_string <- function(students) {
         "Počet vyvolání: ",
         number_of_non_excused_call_ups + number_of_excused_call_ups,
         " z toho omluveno: ", number_of_excused_call_ups, ".\n",
-        "Maximální počet vyvolání ve skupině: ", max_calls, ".\n"  #,
-        #"(body: ", NULL, ")"
+        "Maximální počet vyvolání ve skupině: ", max_calls, ".\n",
+        # "(body: ", NULL, ")"
+        "\n",
+        #
+        # attendance
+        "Normované body za účast: ",
+        format_number(normalized_attendance),
+        ".\n",
+        "Počet účastí: ", attendance_points, ".\n",
+        "(účast: ", attendance_string, ")\n"
       )
     )
 }
-
-
-add_output_string <- function(students) {
-  students |>
-    dplyr::mutate(
-      full_string = stringr::str_c(
-        "Body za účast: ", attendance_points,
-        " (omluveno: ", excused, ")\n",
-        "(účast: ", attendance_string, ")\n\n",
-        "Body za aktivitu: ", round(activity_points, 1), "\n",
-        "(body: ", activity_string, ")\n\n",
-        "Hrubé body za účast a aktivitu: ", round(raw_points, 1), "\n",
-        "Normované body za účast a aktivitu: *", norm_points
-      )
-    )
-}
-
 
 
 # writing data ----------------------------------------------------------------
@@ -923,7 +921,6 @@ normalize_micro <- function(
         by = c("credentials", "student_uco")
       ) |>
       # add output string
-      add_activity_string() |>
       add_output_string()
     # create blocks for normalization and write the normalized points to IS
     if (errs$no_of_errors == 0) {
