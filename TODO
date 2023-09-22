@@ -1,0 +1,37 @@
+TODO
+====
+
+Docházka
+--------
+- preznahr -- náhradní prezenčka
+  - implementace
+  - do výpočtu bodů před normováním
+  - do exportního skriptu
+- normování podle počtu seminářů -- problém
+  - teď se dělá podle počtu seminářů za semestr, takže body v průběhu semestru rostou
+  - to ale znemožňuje extrapolace bodů
+  - alternativa: normovat to počtem seminářů, které už proběhly
+    - počítáno jako maximální počet účastí, které někdo má?
+    - nebo jako počet slov/bloků/???
+
+
+Celý export
+-----------
+- zápis na disk
+
+
+Testování
+---------
+- otestovat celý kód
+- testovat mailování z pluta02
+
+
+Řešení chyb
+-----------
+- jak to teče/selhává, když něco selže?
+
+
+Text o normování bodů
+---------------------
+- upravit podle toho, jak se skutečně normuje a
+- jak se body reportují v ISu
