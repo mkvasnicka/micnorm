@@ -638,7 +638,7 @@ get_alternative_attendance <- function(..., alt_attendance_notebook) {
   #
   misshaped <- alt_attendance |>
     dplyr::filter(is.na(alt_attendance_points))
-  for (r in nrow(misshaped)) {
+  for (r in seq_len(nrow(misshaped))) {
     logging::logwarn(
       stringr::str_c(
         "... alternative attendance points are crippled in course %s,",
@@ -1058,7 +1058,8 @@ normalize_micro <- function(
           no_of_seminars = no_of_seminars,
           max_points_attendance = max_points_attendance,
           alt_attendance_notebook = alt_attendance_notebook
-        ),
+        ) |> 
+          dplyr::select(-course),
         by = c("credentials", "student_uco")
       ) |>
       # add output string
