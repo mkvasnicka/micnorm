@@ -768,6 +768,7 @@ normalize_points_in_one_group <- function(
 #' @return a tibble
 normalize_points <- function(
     students,
+    renegades,
     max_points_activity,
     activity_const_a,
     activity_const_b) {
@@ -1004,7 +1005,7 @@ start_logging <- function(log_folder, norm_block) {
 #'  implicit value is TRUE
 #'
 #' @return (silently) tibble with data created
-#' 
+#'
 #' @export
 #
 normalize_micro <- function(
@@ -1023,7 +1024,8 @@ normalize_micro <- function(
     group_file_name = "last_groupings.RData",
     sender = "847@muni.cz",
     recipient = sender,
-    export_to_IS = TRUE) {
+    export_to_IS = TRUE,
+    send_mail = TRUE) {
   log_file <- start_logging(log_folder, norm_block)
   try({
     # get renegades (i.e. students that stopped working within the term)
@@ -1044,6 +1046,7 @@ normalize_micro <- function(
       augment_points() |>
       # normalize them
       normalize_points(
+        renegades,
         max_points_activity,
         activity_const_a,
         activity_const_b
@@ -1072,7 +1075,9 @@ normalize_micro <- function(
     the$no_of_errors, the$no_of_warnings
   )
   # send mail
-  create_and_send_mail(sender, recipient, log_file)
+  if (send_mail) {
+    create_and_send_mail(sender, recipient, log_file)
+  }
   # return invisibly
   invisible(students)
 }
