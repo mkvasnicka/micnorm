@@ -470,7 +470,7 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
       activity_point_string = stringr::str_c(
         "(", stringr::str_extract(notebook, "\\d{2}"), ") ",
         input,
-        collapse = " || "
+        collapse = " " #" || "
       ),
       .groups = "drop"
     ) |>
@@ -822,7 +822,8 @@ add_output_string <- function(
       output_string = stringr::str_c(
         # total points
         "Počet normovaných bodů za účast a práci na semináři: *",
-        round(norm_points + normalized_attendance), ".\n",
+        round(norm_points + normalized_attendance),
+        " z ", (max_points_activity + max_points_attendance)," možných.\n",
         "\n",
         "Tyto normované body se skládají ze dvou částí:\n",
         "\n",
@@ -831,7 +832,8 @@ add_output_string <- function(
         "Počet normovaných bodů za aktivitu: ", format_number(norm_points), 
         " z ", max_points_activity, " možných.\n",
         "(Normované body za aktivitu mohou růst i klesat.)\n",
-        "Počet hrubých bodů za vyvolání: ", format_number(call_up_points), ".\n",
+        "Počet hrubých bodů za vyvolání: ",
+        format_number(call_up_points), ".\n",
         "Počet vyvolání: ",
         number_of_non_excused_call_ups + number_of_excused_call_ups, ", ",
         "z toho omluveno: ", number_of_excused_call_ups, ".\n",
