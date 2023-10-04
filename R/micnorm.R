@@ -813,37 +813,44 @@ format_number <- function(x) {
 #' @param students (tibble) students
 #'
 #' @return a tibble with same columns as students + output_string
-add_output_string <- function(students) {
+add_output_string <- function(
+  students,
+  max_points_attendance,
+  max_points_activity) {
   students |>
     dplyr::mutate(
       output_string = stringr::str_c(
         # total points
-        "Normované body za účast a práci na semináři: *",
-        round(norm_points + normalized_attendance),
-        ". Z toho:\n",
+        "Počet normovaných bodů za účast a práci na semináři: *",
+        round(norm_points + normalized_attendance), ".\n",
+        "\n",
+        "Tyto normované body se skládají ze dvou částí:\n",
         "\n",
         #
         # activity
-        "Normované body za aktivitu: ", format_number(norm_points), ".\n",
-        "Přepočtené body za aktivitu: ", format_number(raw_points), ".\n",
-        "Hrubé body za vyvolání: ", format_number(call_up_points), ".\n",
-        "Hrubé body za přihlášení se: ",
-        format_number(raised_hand_points),
-        ".\n",
+        "Počet normovaných bodů za aktivitu: ", format_number(norm_points), 
+        " z ", max_points_activity, " možných.\n",
+        "(Normované body za aktivitu mohou růst i klesat.)\n",
+        "Počet hrubých bodů za vyvolání: ", format_number(call_up_points), ".\n",
         "Počet vyvolání: ",
         number_of_non_excused_call_ups + number_of_excused_call_ups, ", ",
         "z toho omluveno: ", number_of_excused_call_ups, ".\n",
         "Maximální počet vyvolání ve skupině: ", max_calls, ".\n",
+        "Hrubé body za přihlášení se: ",
+        format_number(raised_hand_points),
+        ".\n",
+        "Přepočtené body za aktivitu: ", format_number(raw_points), ".\n",
         "Body: ", activity_point_string, ".\n",
         "\n",
         #
         # attendance
-        "Normované body za účast: ",
+        "Počet normovaných bodů za účast: ",
         format_number(normalized_attendance),
-        ".\n",
-        "Počet účastí: ", attendance_points, ", ",
-        "z toho náhradní termín: ", alt_attendance_points, ".\n",
-        "(účast: ", attendance_string, ")\n"
+        " z ", max_points_attendance, " možných.\n",
+        "(Normované body za účast nemohou klesat, jen růst.)\n",
+        "Počet účastí: ", attendance_points, ".\n",
+        "Účast na semináři: ", attendance_string, "\n",
+        "Počet účastí na náhradním termínu: ", alt_attendance_points, ".\n"
       )
     )
 }
@@ -1063,7 +1070,10 @@ normalize_micro <- function(
         by = c("credentials", "student_uco")
       ) |>
       # add output string
-      add_output_string()
+      add_output_string(
+        max_points_attendance = max_points_attendance,
+        max_points_activity = max_points_activity
+      )
     # create blocks for normalization and write the normalized points to IS
     if (export_to_IS && the$no_of_errors == 0) {
       write_data_to_is(students, norm_name, norm_block, ...)
