@@ -15,6 +15,9 @@ mivsmicro <- tibble::tribble(
   "MPE_MIVS", "01", "22"
 )
 
+
+
+
 res <- normalize_micro(
   micro,
   mivs,
@@ -22,6 +25,20 @@ res <- normalize_micro(
   export_to_IS = FALSE,
   send_mail = FALSE
 )
+
+res2 <- normalize_micro(
+  micro,
+  mivs,
+  course_mapping = mivsmicro,
+  export_to_IS = FALSE,
+  send_mail = FALSE
+)
+
+is_same(res, res2)
+
+view_output(res, semin = c("04", "06"))
+
+
 
 resmivs <- normalize_micro(
   mivs,
