@@ -1,21 +1,16 @@
 TODO
 ====
 
-Testování
----------
-- zkontrolovat, proč dává pokaždé jiné výsledky (liší se pořadí studentů?)
-- zkontrolovat, že se dobře načetly body
-- zkontrolovat normování
-  - aktivity
-  - docházky
-- otestovat celý kód
-- testovat mailování z pluta02
-
-
 Extrapolace
 -----------
 - vypsat do dvou poznámkových bloků body (s hvězdičkou) za účast a za aktivitu
   - aby se mohlo normovat
+
+
+Testování
+---------
+- zkontrolovat normování aktivity
+- testovat mailování z pluta02
 
 
 Docházka
@@ -23,12 +18,6 @@ Docházka
 - náhrady celého semináře, aby se nemuselo zadávat ručně
   - když odpadne MIVS bez náhrady
   - když odpadne úterý, které nedokážeme nahradit
-- normování podle počtu seminářů -- problém
-  - teď se dělá podle počtu seminářů za semestr, takže body v průběhu semestru rostou
-  - to ale znemožňuje extrapolace bodů
-  - alternativa: normovat to počtem seminářů, které už proběhly
-    - počítáno jako maximální počet účastí, které někdo má?
-    - nebo jako počet slov/bloků/???
 
 
 Řešení chyb
