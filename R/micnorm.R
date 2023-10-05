@@ -710,19 +710,12 @@ get_attendance <- function(
     dplyr::bind_rows() |>
     dplyr::rename(student_uco = uco) |>
     dplyr::left_join(alt, by = c("course", "student_uco")) |>
-    dplyr::mutate(
-      attendance_points = attendance_points +
-        dplyr::if_else(is.na(alt_attendance_points), 0, alt_attendance_points),
-      normalized_attendance = attendance_points * max_points_attendance /
-        no_of_seminars
-    ) |>
     dplyr::select(
       course,
       student_uco,
       attendance_string,
       attendance_points,
       alt_attendance_points,
-      normalized_attendance,
       dplyr::everything()
     )
 }
@@ -752,13 +745,35 @@ add_attendance <- function(
     tab,
     get_attendance(
       ...,
-      no_of_seminars = no_of_valid_seminars,  # no_of_seminars,
+      no_of_seminars = no_of_valid_seminars, # no_of_seminars,
       max_points_attendance = max_points_attendance,
       alt_attendance_notebook = alt_attendance_notebook
     ) |>
       dplyr::select(-course),
     by = c("credentials", "student_uco")
-  )
+  ) |>
+    dplyr::mutate(
+      attendance_points = dplyr::if_else(
+        is.na(attendance_points),
+        0L,
+        attendance_points
+      ),
+      alt_attendance_points = dplyr::if_else(
+        is.na(
+          alt_attendance_points
+        ),
+        0L,
+        alt_attendance_points
+      ),
+      attendance_string = dplyr::if_else(
+        is.na(attendance_string),
+        "",
+        attendance_string
+      ),
+      attendance_points = attendance_points + alt_attendance_points,
+      normalized_attendance = attendance_points * max_points_attendance /
+        no_of_valid_seminars # no_of_seminars
+    )
 }
 
 
@@ -807,7 +822,7 @@ normalize_points_in_one_group <- function(
   norm_points <- (c1 + c2 * (raw_points - mean_points))
   norm_points <- pmin(norm_points, 100)
   norm_points <- pmax(norm_points, 0)
-  round(norm_points * max_points / 100)
+  norm_points * max_points / 100
 }
 
 #' Normalize points for activity on seminar.
@@ -853,7 +868,7 @@ normalize_points <- function(
 #'
 #' @return a number
 format_number <- function(x) {
-  dplyr::if_else(is.na(x) | is.infinite(x), 0, x) |> 
+  dplyr::if_else(is.na(x) | is.infinite(x), 0, x) |>
     round(3)
 }
 
