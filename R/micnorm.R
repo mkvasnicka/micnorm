@@ -917,7 +917,7 @@ add_output_string <- function(
         "Počet normovaných bodů za účast: ",
         format_number(normalized_attendance),
         " z ", max_points_attendance, " možných.\n",
-        "(Normované body za účast růst i klesat.)\n",
+        "(Normované body za účast mohou růst i klesat.)\n",
         "Počet účastí: ", attendance_points, " z ",
         no_of_valid_seminars, " proběhlých seminářů.\n",
         "Účast na semináři: ", attendance_string, "\n",
