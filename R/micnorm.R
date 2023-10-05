@@ -517,7 +517,8 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
     point_string,
     by = c("credentials", "uco")
   ) |>
-    dplyr::rename(student_uco = "uco")
+    dplyr::rename(student_uco = "uco") |>
+    dplyr::mutate(no_of_valid_seminars = length(valid_notebooks))
 }
 
 
@@ -727,6 +728,40 @@ get_attendance <- function(
 }
 
 
+#' Add attendance data to a table
+#'
+#' This function adds attendance data to a table.
+#'
+#' @param tab A tibble containing the input table.
+#' @param ... credentials separated by commas.
+#' @param no_of_seminars The total number of seminars.
+#' @param max_points_attendance The maximum points that can be obtained
+#'  for attendance.
+#' @param alt_attendance_notebook The name of the notebook with an alternative
+#'   attendance.
+#'
+#' @return A tibble containing the input table with attendance data added.
+add_attendance <- function(
+    tab,
+    ...,
+    no_of_seminars,
+    max_points_attendance,
+    alt_attendance_notebook) {
+  no_of_valid_seminars <- tab$no_of_valid_seminars[1]
+  dplyr::left_join(
+    tab,
+    get_attendance(
+      ...,
+      no_of_seminars = no_of_valid_seminars,  # no_of_seminars,
+      max_points_attendance = max_points_attendance,
+      alt_attendance_notebook = alt_attendance_notebook
+    ) |>
+      dplyr::select(-course),
+    by = c("credentials", "student_uco")
+  )
+}
+
+
 
 # point augmentation ----------------------------------------------------------
 
@@ -867,8 +902,9 @@ add_output_string <- function(
         "Počet normovaných bodů za účast: ",
         format_number(normalized_attendance),
         " z ", max_points_attendance, " možných.\n",
-        "(Normované body za účast nemohou klesat, jen růst.)\n",
-        "Počet účastí: ", attendance_points, ".\n",
+        "(Normované body za účast růst i klesat.)\n",
+        "Počet účastí: ", attendance_points, " z ",
+        no_of_valid_seminars, " proběhlých seminářů.\n",
         "Účast na semináři: ", attendance_string, "\n",
         "Počet účastí na náhradním termínu: ", alt_attendance_points, ".\n"
       )
@@ -1079,15 +1115,11 @@ normalize_micro <- function(
         activity_const_b
       ) |>
       # add and normalize attendance points
-      dplyr::left_join(
-        get_attendance(
-          ...,
-          no_of_seminars = no_of_seminars,
-          max_points_attendance = max_points_attendance,
-          alt_attendance_notebook = alt_attendance_notebook
-        ) |> 
-          dplyr::select(-course),
-        by = c("credentials", "student_uco")
+      add_attendance(
+        ...,
+        no_of_seminars = no_of_seminars,
+        max_points_attendance = max_points_attendance,
+        alt_attendance_notebook = alt_attendance_notebook
       ) |>
       # add output string
       add_output_string(
