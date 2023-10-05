@@ -15,6 +15,9 @@
 #' view_output(tab = my_table)
 #' view_output(tab = my_table, semin = c("04", "06"))
 view_output <- function(tab, semin = NULL, by_semin = TRUE) {
+  if (is.numeric(semin)) {
+    semin <- stringr::str_pad(semin, 2, pad = "0")
+  }
   if (!is.null(semin)) {
     tab <- dplyr::filter(tab, seminar %in% semin)
   }

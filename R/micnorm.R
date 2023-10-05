@@ -424,6 +424,22 @@ parse_point_line <- function(
 }
 
 
+# prettyfies points to format - | -
+prettyfy_points <- function(s) {
+  s1 <- stringr::str_split_i(s, "\\|", 1) |> 
+    stringr::str_squish()
+  s2 <- stringr::str_split_i(s, "\\|", 2) |> 
+    stringr::str_squish()
+  # s <- stringr::str_split_1(s, "\\|") |> 
+  #   stringr::str_squish()
+  stringr::str_c(
+    ifelse(s1 == "", "-", s1),
+    " | ",
+    ifelse(is.na(s2) | s2 == "", "-", s2)
+  )
+}
+
+
 #' Get and process students' activity points.
 #'
 #' @param ... credentials
@@ -463,19 +479,21 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
   }
   the$no_of_warnings <- the$no_of_warnings + nrow(misshaped)
   #
+  valid_notebooks <- activity_points |>
+    dplyr::summarize(valid = sum(input != "") > 0, .by = notebook) |>
+    dplyr::filter(valid) |>
+    dplyr::pull(notebook)
   point_string <- activity_points |>
+    dplyr::filter(notebook %in% valid_notebooks) |>
     dplyr::group_by(credentials, uco) |>
     dplyr::arrange(credentials, uco, notebook, .by_group = TRUE) |>
     dplyr::summarize(
       activity_point_string = stringr::str_c(
         "(", stringr::str_extract(notebook, "\\d{2}"), ") ",
-        input,
-        collapse = " " #" || "
+        prettyfy_points(input),
+        collapse = "  "
       ),
       .groups = "drop"
-    ) |>
-    dplyr::mutate(
-      activity_point_string = stringr::str_squish(activity_point_string)
     )
   # aggregation
   activity_points <- activity_points |>
