@@ -1045,7 +1045,7 @@ normalize_micro <- function(
     activity_const_b = 120,
     activity_name_mask = "^bodysemin\\d{2}$",
     alt_attendance_notebook = "preznahr",
-    norm_name = "Normované body za průběžnou práci na semináři",
+    norm_name = "Normované body za účast a průběžnou práci na semináři",
     norm_block = "bodsemin",
     log_folder = "logs",
     group_file_name = "last_groupings.RData",
