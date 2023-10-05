@@ -1,6 +1,23 @@
 TODO
 ====
 
+Testování
+---------
+- zkontrolovat, proč dává pokaždé jiné výsledky (liší se pořadí studentů?)
+- zkontrolovat, že se dobře načetly body
+- zkontrolovat normování
+  - aktivity
+  - docházky
+- otestovat celý kód
+- testovat mailování z pluta02
+
+
+Extrapolace
+-----------
+- vypsat do dvou poznámkových bloků body (s hvězdičkou) za účast a za aktivitu
+  - aby se mohlo normovat
+
+
 Docházka
 --------
 - náhrady celého semináře, aby se nemuselo zadávat ručně
@@ -14,12 +31,6 @@ Docházka
     - nebo jako počet slov/bloků/???
 
 
-Testování
----------
-- otestovat celý kód
-- testovat mailování z pluta02
-
-
 Řešení chyb
 -----------
 - jak to teče/selhává, když něco selže?
@@ -29,3 +40,9 @@ Text o normování bodů
 ---------------------
 - upravit podle toho, jak se skutečně normuje a
 - jak se body reportují v ISu
+
+
+
+Pluto
+-----
+- rozjet na pluto02
