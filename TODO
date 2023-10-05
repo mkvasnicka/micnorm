@@ -1,12 +1,6 @@
 TODO
 ====
 
-Extrapolace
------------
-- vypsat do dvou poznámkových bloků body (s hvězdičkou) za účast a za aktivitu
-  - aby se mohlo normovat
-
-
 Testování
 ---------
 - zkontrolovat normování aktivity
@@ -23,13 +17,6 @@ Docházka
 Řešení chyb
 -----------
 - jak to teče/selhává, když něco selže?
-
-
-Text o normování bodů
----------------------
-- upravit podle toho, jak se skutečně normuje a
-- jak se body reportují v ISu
-
 
 
 Pluto
