@@ -20,7 +20,8 @@ normalize_micro(
   group_file_name = "last_groupings.RData",
   sender = "847@muni.cz",
   recipient = sender,
-  export_to_IS = TRUE
+  export_to_IS = TRUE,
+  send_mail = TRUE
 )
 }
 \arguments{

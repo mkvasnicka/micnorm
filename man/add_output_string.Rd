@@ -4,7 +4,7 @@
 \alias{add_output_string}
 \title{Add string describing students' activity and attendance.}
 \usage{
-add_output_string(students)
+add_output_string(students, max_points_attendance, max_points_activity)
 }
 \arguments{
 \item{students}{(tibble) students}

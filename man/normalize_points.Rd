@@ -6,6 +6,7 @@
 \usage{
 normalize_points(
   students,
+  renegades,
   max_points_activity,
   activity_const_a,
   activity_const_b

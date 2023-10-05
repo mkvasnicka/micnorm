@@ -1,3 +1,10 @@
+library(devtools)
+
+document()
+load_all()
+
+
+
 micro <- credentials(
   key = "D9eiTfjEf3PEh6V6",
   faculty = 1456,
