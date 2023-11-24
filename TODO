@@ -2,12 +2,23 @@ TODO
 ====
 
 Počty proběhlých seminářů
---------------------------
+-------------------------
 - jak bezpečně odhadnout počet proběhlých seminářů?
   - teď se to odhaduje podle počtu vyplněných poznámkových bloků za aktivitu
     - ale jeden cvičící to zřejmě celé vyplňuje do špatných týdnů (Kutlak)
   - šlo by to udělat i podle bodů za účast -- ale asi jen bodů sejmutých kartou
     - protože do náhrad mi jeden cvičící (Paleta) taky narval špatné body
+
+
+Varování před špatným vyplněním ISu
+-----------------------------------
+- přidat varování v případě, že je
+  - v ISu vyplněný poznámkový blok za aktivitu, když seminář ještě neproběhl
+    - asi jde odhadnout z účasti (ale jen strojově sejmutých kartou)
+  - v ISu vyplněná účast, ale není vyplněný poznámkový blok za aktivitu
+    - asi jde odhadnout z poznámkového bloku (ale jen sejmutých strojově kartou)
+  - v ISu zadané náhrady seminářů větší než 1
+    - žádné dva svátky v podzimním semestru nejsou ve stejný den v týdnu
 
 
 Docházka
