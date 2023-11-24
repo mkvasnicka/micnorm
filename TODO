@@ -1,10 +1,13 @@
 TODO
 ====
 
-Testování
----------
-- zkontrolovat normování aktivity
-- testovat mailování z pluta02
+Počty proběhlých seminářů
+--------------------------
+- jak bezpečně odhadnout počet proběhlých seminářů?
+  - teď se to odhaduje podle počtu vyplněných poznámkových bloků za aktivitu
+    - ale jeden cvičící to zřejmě celé vyplňuje do špatných týdnů (Kutlak)
+  - šlo by to udělat i podle bodů za účast -- ale asi jen bodů sejmutých kartou
+    - protože do náhrad mi jeden cvičící (Paleta) taky narval špatné body
 
 
 Docházka
@@ -17,8 +20,3 @@ Docházka
 Řešení chyb
 -----------
 - jak to teče/selhává, když něco selže?
-
-
-Pluto
------
-- rozjet na pluto02
