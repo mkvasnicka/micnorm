@@ -772,15 +772,11 @@ add_attendance <- function(
       ),
       # TODO: the following line is a hack: the number of seminars is guessed
       # attendance points estimated by the card reader; if this hack is removed,
-      # the hack line below should be removed as well
       no_of_valid_seminars = max(attendance_points),
       attendance_points = attendance_points + alt_attendance_points,
       normalized_attendance = attendance_points * max_points_attendance /
         no_of_valid_seminars
-    ) |>
-    # TODO: the following line is a hack: the variable was tweaked above;
-    # it should be removed if the hack above is removed
-    dplyr::select(-no_of_valid_seminars)
+    )
 }
 
 
