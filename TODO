@@ -36,3 +36,139 @@ Docházka
 Řešení chyb
 -----------
 - jak to teče/selhává, když něco selže?
+
+
+
+Nové bodování průběžných testů -- návrh
+========================================
+
+Testy se nebudou zavírat, ale místo toho budou mít jen soft deadline.
+Standardní čas bude od středy do neděle.
+Pokud to někdo neodevzdá včas, může to vyplnit později, ale za každý
+započatý týden navíc ztratí 25 % bodů (late-submission policy).
+
+Jak se to udělá: Normování odpovědníků už nepoběží v ISu, ale v R kódu na pluto02.
+Podstata je, že je potřeba u každého testu stáhnout jak počet bodů, tak i datum
+jeho odevzdání. To není možné udělat z odpovídajícího poznámkového bloku, protože
+ten má špatná data (stejná pro všechny studenty, podle programátora to ani není datum
+uložení -- ale čeho vlastně?). Musí se to tedy stáhnout přímo z odpovědníků.
+
+Ke stažení odpovědníků slouží API v ISu, které používá neosobní UČO.
+
+e-technička Magdaléna Šimčíková:
+
+> na základě komunikace s programátorem potvrzuji, že by pro vás bylo
+> nejlepší použít neosobní účet. Ten si můžete založit, pokud budete
+> mít přiděleno právo 'w_neosobni' s povolením zápisu, které vám mohou
+> přidělit IS-technici (přidávám do kopie a prosím o vyřízení). 
+> Na této adrese potom budete moci neosobní účet spravovat:
+> https://is.muni.cz/auth/people/neosoba
+> Zde budete moci nastavit, k jakým aplikacím bude mít neosobní účet
+> přístup a z jakých IP adres k nim bude moci přistupovat. Pokud se
+> někdo pokusí přistoupit k účtu z nepovolené IP adresy nebo k nepovolené
+> aplikaci, budete o tom jako majitel účtu informován automatickým mailem.
+
+> Funkci, kterou požadujete, tedy strojové zpracování souborů z odevzdávárny
+> a následně zápis do poznámkového bloku, už na FI někteří vyučující využívají.
+> Přikládám kontakt na dva z nich, na které se můžete obrátit:
+> https://is.muni.cz/auth/osoba/pazuzu  (Mgr. Roman Lacko)
+> https://is.muni.cz/auth/osoba/139761  (RNDr. Petr Ročkai, Ph.D.)
+
+> Přikládám také nápovědu k exportu odpovědí z odpovědníků, které můžete
+> také stahovat pomocí neosobního účtu:
+> https://is.muni.cz/auth/elearning/test_export?help=1
+> Export ale slouží primárně ke stažení odpovědí ve formátech tab nebo csv.
+> Momentálně jde stáhnout i ve formátu XML, ale do budoucna se s ním již
+> nepočítá. Pokud chcete pracovat s bodovými výsledky odpovědníku,
+> doporučuje se propsat je do poznámkového bloku a pracovat s API
+> poznámkových bloků.
+
+> Problém ohledně stejného času v poznámkových blocích studentů
+> (při použití blok-dej-obsah parametr ZMENENO) programátor prověří.
+> Parametr by měl ukazovat datum, kdy došlo u studenta v poznámkovém bloku
+> k poslední změně (nemusí odpovídat odevzdání odpovědníku, ale nemělo by být
+> u všech studentů stejné).
+
+Načtení bloku by pak mělo fungovat např. takto:
+
+```{r}
+# simple example
+library(curl)
+library(readr)
+url <- "https://is.muni.cz/auth/elearning/test_export?testurl=https://is.muni.cz/auth/el/econ/podzim2023/MPE_MIVS/odp/tb/prubeztftest/prubtftest1prez.qdesc;type=simple;format=csv"
+h <- curl::new_handle()
+curl::handle_setopt(
+  handle = h,
+  httpauth = 1,
+  userpwd = "uco:primarni_heslo"
+)
+resp <- curl::curl_fetch_memory(
+  url,
+  handle = h
+)
+ddd <- resp$content |> rawToChar()
+ooo <- readr::read_delim(
+  ddd,
+  delim = ";", col_types = readr::cols(
+    uco = col_double(),
+    jmeno = col_character(),
+    pocet = col_double(),
+    cas_provedeni = col_datetime(format = "%D. %m. %Y %H:%M"),
+    obor = col_character(),
+    studium = col_character()
+  )
+)
+```
+
+```{r}
+# function to read the answers into a data frame
+get_answers <- function(test_url, handle) {
+  url <- paste0(
+    "https://is.muni.cz/auth/elearning/test_export?testurl=",
+    curl::curl_escape(test_url),
+    ";type=simple;format=csv"
+  )
+  resp <- curl::curl_fetch_memory(url, handle = handle)$content |> 
+    rawToChar() |>
+    readr::read_delim(
+      delim = ";", col_types = readr::cols(
+        uco = readr::col_integer(),
+        jmeno = readr::col_character(),
+        pocet = readr::col_double(),
+        cas_provedeni = readr::col_datetime(format = "%d. %m. %Y %H:%M"),
+        obor = readr::col_character(),
+        studium = readr::col_character()
+      )
+    ) |> 
+    dplyr::transmute(
+      uco = uco,
+      student_name = jmeno,
+      points = pocet,
+      time = cas_provedeni
+      # time = lubridate::with_tz(cas_provedeni, "Europe/Prague")
+    )
+}
+```
+
+```{r}
+# usage
+url <- "https://is.muni.cz/auth/el/econ/podzim2023/MPE_MIVS/odp/tb/prubeztftest/prubtftest1prez.qdesc"
+h <- curl::new_handle()
+curl::handle_setopt(
+  handle = h,
+  httpauth = 1,
+  userpwd = "uco:primarni_heslo"
+)
+tab <- get_answers(url, h)
+```
+
+
+Načítání souborů z odevzdávárny AVED
+====================================
+
+Přes neosobní UČO by se měly dát číst i soubory z odevzdávárny AVED pro nový systém
+zpětné vazby.
+
+Dokumentace: https://is.muni.cz/auth/napoveda/technicka/spravce_souboru_api
+
+
