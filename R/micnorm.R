@@ -365,7 +365,7 @@ read_points_from_blocks <- function(blocks) {
 # see tests
 parse_point_line <- function(
     line,
-    excused_call_up_sign = "X",
+    excused_call_up_sign = c("X", "x"),
     max_points = 5) {
   # assume line is character scalar
   stopifnot(is.character(line), length(line) == 1)
@@ -384,11 +384,11 @@ parse_point_line <- function(
   } else {
     call_up <- call_up |> stringr::str_split_1("\\s+")
     number_of_excused_call_ups <- sum(
-      call_up == excused_call_up_sign,
+      call_up %in% excused_call_up_sign,
       na.rm = TRUE
     )
     call_up <- call_up |>
-      purrr::keep(~ .x != excused_call_up_sign) |>
+      purrr::keep(~ !(.x %in% excused_call_up_sign)) |>
       purrr::map(~ stringr::str_replace(.x, "(\\d),(\\d)", "\\1.\\2")) |>
       purrr::map_dbl(~ suppressWarnings(as.numeric(.x)))
     call_up_points <- sum(call_up, na.rm = TRUE)
