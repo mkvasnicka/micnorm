@@ -770,10 +770,21 @@ add_attendance <- function(
         "",
         attendance_string
       ),
-      # TODO: the following line is a hack: the number of seminars is guessed
-      # attendance points estimated by the card reader; if this hack is removed,
+      # TODO: the following lines are a hack: the number of seminars is guessed
+      # I tried several methods and all of them failed
+      # 1) I used number of valid call-up notebooks; but some tutors put
+      #    the points in the wrong notebook/week
+      # 2) I used maximum number of attendance points (got by the card reader);
+      #    but two students switched seminars in the first week but
+      #    attended BOTH of them, i.e., they have 2 attendances in the first
+      #    week (in 2024)
+      # Now I use the second approach but I changed the function in MUIS to
+      # count only one attendance per week.
       no_of_valid_seminars = max(attendance_points),
-      attendance_points = attendance_points + alt_attendance_points,
+      attendance_points = pmin(
+        attendance_points + alt_attendance_points,
+        no_of_valid_seminars
+      ),
       normalized_attendance = attendance_points * max_points_attendance /
         no_of_valid_seminars
     )
