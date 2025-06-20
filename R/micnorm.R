@@ -11,6 +11,7 @@ the$no_of_warnings <- 0
 #' @export
 #' @importFrom MUIS credentials
 MUIS::credentials
+MUIS::uco_credentials
 
 
 
@@ -50,7 +51,6 @@ send_mail <- function(
   })
 }
 
-
 #' Create email from log and send it.
 #'
 #' @param sender (string) sender's email address
@@ -77,6 +77,61 @@ create_and_send_mail <- function(sender, recipient, log_file) {
     ),
     sender = sender,
     recipient = recipient
+  )
+}
+
+
+
+# config ----------------------------------------------------------------------
+
+load_config <- function(filename = "micnorm.yaml") {
+  if (!file.exists(filename)) {
+    stop("Configuration file '", filename, "' does not exist.")
+  }
+  splice <- function(l) {
+    l |>
+      purrr::transpose() |>
+      purrr::map(unlist) |>
+      tibble::as_tibble()
+  }
+  # read the config file
+  config <- yaml::read_yaml(filename)
+  # tests written at home over the internet
+  test_parts <- splice(config$tests_parts)
+  test_deadlines <- splice(config$tests_deadlines)
+  tests <- dplyr::left_join(test_parts, test_deadlines, by = "number") |>
+    dplyr::mutate(
+      deadline = as.Date(deadline)
+    )
+  # course bindings
+  course_bindings <- splice(config$course_bindings)
+  # impersonal credentials
+  uco_credentials <- MUIS::uco_credentials(
+    uco = config$impersonal_credentials$uco,
+    password = config$impersonal_credentials$password
+  )
+  # notebook credentials
+  credentials <- purrr::map(config$notebook_credentials, function(n) {
+    MUIS::credentials(
+      key = n$key,
+      faculty = n$faculty,
+      course = n$course
+    )
+  })
+  # normalization constants
+  normalization_constants <- tibble::as_tibble(config$normalization)
+  # allowed late submissions
+  late_submissions <- splice(config$late_submissions) |>
+    dplyr::mutate(deadline = as.Date(deadline))
+  # return
+  list(
+    year = config$year,
+    uco_credentials = uco_credentials,
+    credentials = credentials,
+    tests = tests,
+    course_bindings = course_bindings,
+    normalization = normalization_constants,
+    late_submissions = late_submissions
   )
 }
 
@@ -144,7 +199,6 @@ get_all_students <- function(...) {
   )
 }
 
-
 #' Get list of all teachers.
 #'
 #' `get_all_teachers()` downloads a list of all teachers within several courses
@@ -203,7 +257,6 @@ get_all_teachers <- function(...) {
   )
 }
 
-
 #' Get all students and attach them to teachers.
 #'
 #' @param ... credentials
@@ -229,7 +282,6 @@ get_students_attached_to_teachers <- function(...) {
       credentials
     )
 }
-
 
 #' If there are more courses, join their seminars.
 #'
@@ -320,8 +372,6 @@ get_list_of_existing_notebooks <- function(
   )
 }
 
-
-
 #' Read students' points from seminar notebooks.
 #' `read_points_from_blocks()` reads all blocks found by
 #' get_list_of_existing_notebooks() and returns students' points stored there
@@ -360,7 +410,6 @@ read_points_from_blocks <- function(blocks) {
     }
   )
 }
-
 
 # see tests
 parse_point_line <- function(
@@ -423,7 +472,6 @@ parse_point_line <- function(
   )
 }
 
-
 # prettyfies points to format - | -
 prettyfy_points <- function(s) {
   s1 <- stringr::str_split_i(s, "\\|", 1) |> 
@@ -439,7 +487,6 @@ prettyfy_points <- function(s) {
   )
 }
 
-
 #' Get and process students' activity points.
 #'
 #' @param ... credentials
@@ -449,7 +496,7 @@ prettyfy_points <- function(s) {
 #' @return tibble with following columns:
 #' - credentials
 #' - student_uco
-#' -call_up_points
+#' - call_up_points
 #' - number_of_non_excused_call_ups
 #' - number_of_excused_call_ups
 #' - raised_hand_points
@@ -519,6 +566,106 @@ get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
   ) |>
     dplyr::rename(student_uco = "uco") |>
     dplyr::mutate(no_of_valid_seminars = length(valid_notebooks))
+}
+
+
+
+# test points -----------------------------------------------------------------
+
+#' Return URL of a test points notebook.
+#'
+#' `test_url()` returns URL of a test points notebook.
+#'
+#' @param type (string) type of the test; one of "abcd" or "tft"
+#' @param test (string) test number including the letter; e.g. "2B"
+#' @param year (string) year of the course; e.g. "2024"
+#' @param course (string) name of the base course; e.g. "BPE_MIE1"
+#'
+#' @return (string) URL of the test points notebook
+#'
+#' @examples \dontrun{
+#' test_url("abcd", "2B", "2024", "BPE_MIE1")
+#' }
+test_url <- function(type, test, year, course) {
+  # /el/econ/podzim2024/BPE_MIE1/odp/tb/prubezabcdtest/prubabcdtest2Bprez.qdesc
+  # /el/econ/podzim2024/BPE_MIE1/odp/tb/prubeztftest/prubtftest2prez.qdesc
+  stringr::str_c(
+    "/el/econ/podzim", year, "/", course, "/odp/tb/",
+    "prubez", type, "test/",
+    "prub", type, "test", stringr::str_to_upper(test), "prez.qdesc"
+  )
+
+}
+
+#' Read test points from a notebook.
+#'
+#' `read_test_points()` reads test points from a notebook.
+#'
+#' @param uco_cred (list) credentials of the user created with
+#'     `MUIS::uco_credentials()`
+#' @param type (string) type of the test; one of "abcd" or "tft"
+#' @param test (string) test number including the letter; e.g. "2B"
+#' @param year (string) year of the course; e.g. "2024"
+#' @param course (string) name of the base course; the default is "BPE_MIE1"
+#'
+#' @return a tibble with columns:
+#' - uco,
+#' - student_name
+#' - points
+#' - time
+#'
+#' @examples \dontrun{
+#' read_test_points(uco_cred, "abcd", "2B", "2024")
+#' }
+read_one_test <- function(uco_cred, type, test, year, course = "BPE_MIE1") {
+  MUIS::get_answers_table(
+    test_url(type, test, year, course),
+    uco_cred
+  )
+}
+
+read_test_points <- function(config, course = "BPE_MIE1") {
+  # filter tests that were already taken
+  date <- "2024-11-30"
+  tests <- dplyr::filter(config$tests, deadline <= date)
+  # read the tests
+  scores <- purrr::pmap(
+    tests,
+    function(name, type, number, points, deadline) {
+      read_one_test(config$uco_credentials, type, name, config$year, course) |>
+        dplyr::mutate(
+          type = type,
+          test = name,
+          test_number = number
+        )
+    }
+  ) |>
+    dplyr::bind_rows() |>
+  # add max scores and deadlines
+    dplyr::left_join(
+      tests |> dplyr::rename(max_points = points),
+      by = c("test" = "name", "type")
+    ) |>
+  # add allowed late submissions
+    dplyr::left_join(
+      config$late_submissions |>
+        dplyr::rename(
+          deadline_extended = deadline,
+          student_name_test = student_name
+        ),
+      by = c("uco", "test_number")
+    ) |>
+    dplyr::mutate(
+      deadline = dplyr::if_else(is.na(deadline_extended), deadline, deadline_extended)
+    ) |>
+  # calculate penalized points
+    dplyr::mutate(
+      late = as.integer(as.Date(time) - deadline),
+      late = dplyr::if_else(late < 0, 0L, late),
+      penalty = late * config$normalization$daily_penalty,
+      penalized_points = points * (1 - penalty / 100)
+    )
+  scores
 }
 
 
@@ -720,7 +867,6 @@ get_attendance <- function(
     )
 }
 
-
 #' Add attendance data to a table
 #'
 #' This function adds attendance data to a table.
@@ -886,7 +1032,6 @@ format_number <- function(x) {
     round(3)
 }
 
-
 #' Add string describing students' activity and attendance.
 #'
 #' `add_output_string()` adds a string describing students' activity 
@@ -979,7 +1124,6 @@ safely_create_normalized_block <- function(name, shortcut, ...) {
     }
   )
 }
-
 
 #' Writes normalized points to IS.
 #'

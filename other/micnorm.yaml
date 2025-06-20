@@ -1,0 +1,108 @@
+# change each year ------------------------------------------------------------
+
+# current year
+year: 2024
+
+# deadlines of the tests written at home over the internet
+tests_deadlines:
+  - number: 1
+    deadline: 2024-10-13
+  - number: 2
+    deadline: 2024-11-03
+  - number: 3
+    deadline: 2024-12-01
+  - number: 4
+    deadline: 2024-12-15
+
+# course bindings
+course_bindings:
+  - course: MPE_MIVS
+    source_seminar: "01"
+    target_seminar: "22"
+
+
+
+# this section must be completely restarted each year -------------------------
+
+# allowed late submissions 
+late_submissions:
+  - uco: 253142
+    student_name: "Jirka Těšitel"
+    test_number: 1
+    deadline: 2024-10-20
+  - uco: 560316
+    student_name: Thomas Donald Anderson
+    test_number: 1
+    deadline: 2024-10-20
+    
+
+
+# credentials -----------------------------------------------------------------
+
+impersonal_credentials:
+  uco: 123
+  password: xxx
+
+notebook_credentials:
+  - course: BPE_MIE1
+    key: "xxx"
+    faculty: 1456
+  - course: MPE_MIVS
+    key: "xxx"
+    faculty: 1456
+
+
+
+# constants -------------------------------------------------------------------
+
+# normalization constants
+normalization:
+  seminmax: 30
+  abcdtestynormmax: 15
+  tftestnormmax: 5
+  grace_points: 2
+  needed_points: 30
+  daily_penalty: 5
+
+# parts of the test written at home over the internet
+tests_parts:
+  # test 1
+  - name: 1
+    type: tf
+    number: 1
+    points: 6
+  - name: 1
+    type: abcd
+    number: 1
+    points: 26
+  # test 2
+  - name: 2
+    type: tf
+    number: 2
+    points: 8
+  - name: 2A
+    type: abcd
+    number: 2
+    points: 25
+  - name: 2B
+    type: abcd
+    number: 2
+    points: 12
+  # test 3
+  - name: 3
+    type: tf
+    number: 3
+    points: 7
+  - name: 3
+    type: abcd
+    number: 3
+    points: 36
+  # test 4
+  - name: 4
+    type: tf
+    number: 4
+    points: 5
+  - name: 4
+    type: abcd
+    number: 4
+    points: 18
