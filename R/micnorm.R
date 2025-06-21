@@ -668,6 +668,61 @@ read_test_points <- function(config, course = "BPE_MIE1") {
   scores
 }
 
+add_test_points_strings <- function(scores, config) {
+  scores |>
+    dplyr::mutate(
+      s = stringr::str_c(
+        "- test ", test, " ", type, ": ",
+        penalized_points, " bodů z ", max_points, " možných"
+      ),
+      s = dplyr::if_else(
+        late > 0,
+        stringr::str_c(
+          s,
+          " (odevzdáno o ", late, " dní později -- penalizované body)"),
+        s
+      ),
+      tf_points = dplyr::if_else(type == "tf",points, 0L),
+      abcd_points = dplyr::if_else(type == "abcd", points, 0L),
+      tf_max_points = dplyr::if_else(type == "tf", max_points, 0L),
+      abcd_max_points = dplyr::if_else(type == "abcd", max_points, 0L)
+    ) |>
+    dplyr::group_by(uco, student_name) |>
+    dplyr::arrange(test_number, desc(type), test, .by_group = TRUE) |>
+    dplyr::summarize(
+      test_points_string = stringr::str_c(s, collapse = "\n"),
+      tf_points = sum(tf_points, na.rm = TRUE),
+      abcd_points = sum(abcd_points, na.rm = TRUE),
+      tf_max_points = sum(tf_max_points, na.rm = TRUE),
+      abcd_max_points = sum(abcd_max_points, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    dplyr::mutate(
+      tf_norm_points = tf_points / tf_max_points * config$normalization$tftestnormmax,
+      abcd_norm_points = abcd_points / abcd_max_points * config$normalization$abcdtestynormmax,
+      test_norm_points = tf_norm_points + abcd_norm_points,
+      test_points_string = stringr::str_c(
+        "Body za jednotlivé testy:\n",
+        test_points_string,
+        "\n\n",
+        "Celkem:\n",
+        "- za tf testy: ", tf_points, " bodů z ", tf_max_points, " možných,",
+        " tj. ", round(tf_norm_points, 1), " normovaných bodů",
+        " (", round(tf_points / tf_max_points * 100, 1), "%",
+        " z ", config$normalization$tftestnormmax, " možných),\n",
+        "- za abcd testy: ", abcd_points, " bodů z ", abcd_max_points,
+        " možných,",
+        " tj. ", round(abcd_norm_points, 1), " normovaných bodů",
+        " (", round(abcd_points / abcd_max_points * 100, 1), "%",
+        " z ", config$normalization$abcdtestynormmax, " možných),\n",
+        "- celkem za testy: ", round(test_norm_points, 1), " normovaných bodů",
+        " z ", config$normalization$tftestnormmax +
+          config$normalization$abcdtestynormmax, " možných\n"
+      )
+    )
+}
+
+
 
 # renegades -------------------------------------------------------------------
 
