@@ -40,20 +40,30 @@ late_submissions:
 # credentials -----------------------------------------------------------------
 
 impersonal_credentials:
-  uco: 123
-  password: xxx
+  uco: 123456
+  password: xxxx
 
 notebook_credentials:
   - course: BPE_MIE1
-    key: "xxx"
+    key: "yyy"
     faculty: 1456
   - course: MPE_MIVS
-    key: "xxx"
+    key: "zzz"
     faculty: 1456
 
 
 
 # constants -------------------------------------------------------------------
+
+# seminars
+seminars:
+  no_of_seminars: 12
+  max_points_attendance: 6
+  max_points_activity: 24
+  activity_const_a: 20
+  activity_const_b: 120
+  activity_name_mask: "^bodysemin\\d{2}$"
+  alt_attendance_notebook: preznahr
 
 # normalization constants
 normalization:
@@ -63,6 +73,23 @@ normalization:
   grace_points: 2
   needed_points: 30
   daily_penalty: 5
+
+# email settings
+mailing:
+  sender: 847@muni.cz
+  recipient: 847@muni.cz
+  send_mail: true
+
+# output
+output:
+  norm_name: "Normované body za účast a průběžnou práci na semináři"
+  norm_block: "bodsemin"
+  log_folder: "logs"
+  group_file_name: "last_groupings.RData"
+
+
+
+# tests -----------------------------------------------------------------------
 
 # parts of the test written at home over the internet
 tests_parts:

@@ -118,8 +118,11 @@ load_config <- function(filename = "micnorm.yaml") {
       course = n$course
     )
   })
-  # normalization constants
-  normalization_constants <- tibble::as_tibble(config$normalization)
+  # normalization constants, seminars, etc.
+  normalization <- tibble::as_tibble(config$normalization)
+  seminars <- tibble::as_tibble(config$seminars)
+  mailing <- tibble::as_tibble(config$mailing)
+  output <- tibble::as_tibble(config$output)
   # allowed late submissions
   late_submissions <- splice(config$late_submissions) |>
     dplyr::mutate(deadline = as.Date(deadline))
@@ -130,7 +133,10 @@ load_config <- function(filename = "micnorm.yaml") {
     credentials = credentials,
     tests = tests,
     course_bindings = course_bindings,
-    normalization = normalization_constants,
+    normalization = normalization,
+    seminars = seminars,
+    mailing = mailing,
+    output = output,
     late_submissions = late_submissions
   )
 }
@@ -159,8 +165,7 @@ load_config <- function(filename = "micnorm.yaml") {
 #' @examples \dontrun{
 #' students <- get_all_students(micprez, mivs)
 #' }
-get_all_students <- function(...) {
-  creds <- list(...)
+get_all_students <- function(creds) {
   logging::loginfo(
     "Trying to download list of students in seminars in %s courses.",
     length(creds)
@@ -217,8 +222,7 @@ get_all_students <- function(...) {
 #' @examples \dontrun{
 #' teachers <- get_all_teachers(micprez, mivs)
 #' }
-get_all_teachers <- function(...) {
-  creds <- list(...)
+get_all_teachers <- function(creds) {
   logging::loginfo(
     "Trying to download list of all teachers in %s courses.",
     length(creds)
@@ -266,9 +270,9 @@ get_all_teachers <- function(...) {
 #' - teacher_uco, teacher_last_name, teacher_first_name,
 #' - student_uco, student_last_name, student_first_name,
 #' - credentials
-get_students_attached_to_teachers <- function(...) {
-  students <- get_all_students(...)
-  teachers <- get_all_teachers(...) #|>
+get_students_attached_to_teachers <- function(creds) {
+  students <- get_all_students(creds)
+  teachers <- get_all_teachers(creds) #|>
     # dplyr::select(-credentials)
   dplyr::left_join(
     students,
@@ -337,9 +341,8 @@ unite_courses <- function(students, mapping) {
 #' blocks <- get_list_of_existing_notebooks(micprez, mivs)
 #' }
 get_list_of_existing_notebooks <- function(
-    ...,
+    creds,
     name_mask = "^bodysemin\\d{2}$") {
-  creds <- list(...)
   logging::loginfo(
     "Trying to download names of all existing blocks in %s courses.",
     length(creds)
@@ -501,8 +504,8 @@ prettyfy_points <- function(s) {
 #' - number_of_excused_call_ups
 #' - raised_hand_points
 #' - activity_point_string
-get_activity_points <- function(..., name_mask = "^bodysemin\\d{2}$") {
-  blocks <- get_list_of_existing_notebooks(..., name_mask = name_mask)
+get_activity_points <- function(creds, name_mask) {
+  blocks <- get_list_of_existing_notebooks(creds, name_mask = name_mask)
   activity_points <- read_points_from_blocks(blocks)
   points <- activity_points$content |>
     stringr::str_replace_na("") |>
@@ -624,9 +627,9 @@ read_one_test <- function(uco_cred, type, test, year, course = "BPE_MIE1") {
   )
 }
 
-read_test_points <- function(config, course = "BPE_MIE1") {
+read_test_points <- function(config, date) {
+  course <- config$credentials[[1]]$course
   # filter tests that were already taken
-  date <- "2024-11-30"
   tests <- dplyr::filter(config$tests, deadline <= date)
   # read the tests
   scores <- purrr::pmap(
@@ -740,9 +743,8 @@ add_test_points_strings <- function(scores, config) {
 #' @examples \dontrun{
 #' renegades <- get_renegades(micprez, mivs)
 #' }
-get_renegades <- function(...) {
+get_renegades <- function(creds) {
   empty <- tibble::tibble(uco = integer(0), content = character(0))
-  creds <- list(...)
   logging::loginfo(
     "Trying to download the list of renegades in %s courses.",
     length(creds)
@@ -815,7 +817,7 @@ get_renegades <- function(...) {
 #' - course,
 #' - student_uco,
 #' - alt_attendance_points
-get_alternative_attendance <- function(..., alt_attendance_notebook) {
+get_alternative_attendance <- function(creds, alt_attendance_notebook) {
   empty_tab <- tibble::tibble(
     course = character(0),
     uco = integer(0),
@@ -844,7 +846,6 @@ get_alternative_attendance <- function(..., alt_attendance_notebook) {
       NULL
     }
   }
-  creds <- list(...)
   alt_attendance <- purrr::map(creds, f, alt_attendance_notebook) |>
     dplyr::bind_rows(empty_tab) |>
     dplyr::mutate(
@@ -899,13 +900,12 @@ get_alternative_attendance <- function(..., alt_attendance_notebook) {
 #' - normalized_attendance, and
 #' - credentials
 get_attendance <- function(
-    ...,
+    creds,
     no_of_seminars,
     max_points_attendance,
     alt_attendance_notebook) {
-  creds <- list(...)
   alt <- get_alternative_attendance(
-    ...,
+    creds,
     alt_attendance_notebook = alt_attendance_notebook
   )
   purrr::map(creds, MUIS::read_all_presence_points) |>
@@ -937,7 +937,7 @@ get_attendance <- function(
 #' @return A tibble containing the input table with attendance data added.
 add_attendance <- function(
     tab,
-    ...,
+    creds,
     no_of_seminars,
     max_points_attendance,
     alt_attendance_notebook) {
@@ -945,7 +945,7 @@ add_attendance <- function(
   dplyr::left_join(
     tab,
     get_attendance(
-      ...,
+      creds,
       no_of_seminars = no_of_valid_seminars, # no_of_seminars,
       max_points_attendance = max_points_attendance,
       alt_attendance_notebook = alt_attendance_notebook
@@ -1304,37 +1304,42 @@ start_logging <- function(log_folder, norm_block) {
 #' @export
 #
 normalize_micro <- function(
-    ...,
-    course_mapping = NULL,
-    no_of_seminars = 12L,
-    max_points_attendance = 6,
-    max_points_activity = 24,
-    activity_const_a = 20,
-    activity_const_b = 120,
-    activity_name_mask = "^bodysemin\\d{2}$",
-    alt_attendance_notebook = "preznahr",
-    norm_name = "Normované body za účast a průběžnou práci na semináři",
-    norm_block = "bodsemin",
-    log_folder = "logs",
-    group_file_name = "last_groupings.RData",
-    sender = "847@muni.cz",
-    recipient = sender,
+    config_file,
+    # ...,
+    # course_mapping = NULL,
+    # no_of_seminars = 12L,
+    # max_points_attendance = 6,
+    # max_points_activity = 24,
+    # activity_const_a = 20,
+    # activity_const_b = 120,
+    # activity_name_mask = "^bodysemin\\d{2}$",
+    # alt_attendance_notebook = "preznahr",
+    # norm_name = "Normované body za účast a průběžnou práci na semináři",
+    # norm_block = "bodsemin",
+    # log_folder = "logs",
+    # group_file_name = "last_groupings.RData",
+    # sender = "847@muni.cz",
+    # recipient = sender,
     export_to_IS = TRUE,
     send_mail = TRUE) {
-  log_file <- start_logging(log_folder, norm_block)
+  config <- load_config(config_file)
+  log_file <- start_logging(config$output$log_folder, config$output$norm_block)
   try({
     # get renegades (i.e. students that stopped working within the term)
-    renegades <- get_renegades(...)
+    renegades <- get_renegades(config$credentials)
     # get the data on students and teachers, join them, and save
     # saving needed because after the end of the term some students may drop
     # and the later computation would be off
-    students <- get_students_attached_to_teachers(...) |>
-      unite_courses(course_mapping)
-    save(students, file = group_file_name)
+    students <- get_students_attached_to_teachers(config$credentials) |>
+      unite_courses(config$course_bindings)
+    save(students, file = config$output$group_file_name)
     # add activity points
     students <- students |>
       dplyr::left_join(
-        get_activity_points(..., name_mask = activity_name_mask),
+        get_activity_points(
+          config$credentials,
+          name_mask = config$seminars$activity_name_mask
+        ),
         by = c("credentials", "student_uco")
       ) |>
       # augment them for illness and various number of examinations
@@ -1342,21 +1347,21 @@ normalize_micro <- function(
       # normalize them
       normalize_points(
         renegades,
-        max_points_activity,
-        activity_const_a,
-        activity_const_b
+        config$seminars$max_points_activity,
+        config$seminars$activity_const_a,
+        config$seminars$activity_const_b
       ) |>
       # add and normalize attendance points
       add_attendance(
-        ...,
-        no_of_seminars = no_of_seminars,
-        max_points_attendance = max_points_attendance,
-        alt_attendance_notebook = alt_attendance_notebook
+        config$credentials,
+        no_of_seminars = config$seminars$no_of_seminars,
+        max_points_attendance = config$seminars$max_points_attendance,
+        alt_attendance_notebook = config$seminars$alt_attendance_notebook
       ) |>
       # add output string
       add_output_string(
-        max_points_attendance = max_points_attendance,
-        max_points_activity = max_points_activity
+        max_points_attendance = config$seminars$max_points_attendance,
+        max_points_activity = config$seminars$max_points_activity
       )
     # create blocks for normalization and write the normalized points to IS
     if (export_to_IS && the$no_of_errors == 0) {
