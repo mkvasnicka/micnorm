@@ -3,6 +3,9 @@
 # current year
 year: 2024
 
+# the day when students are told whether they are accepted for the final test
+final_date: 2024-12-20
+
 # deadlines of the tests written at home over the internet
 tests_deadlines:
   - number: 1
@@ -40,8 +43,8 @@ late_submissions:
 # credentials -----------------------------------------------------------------
 
 impersonal_credentials:
-  uco: 123456
-  password: xxxx
+  uco: 1234
+  password: xxx
 
 notebook_credentials:
   - course: BPE_MIE1

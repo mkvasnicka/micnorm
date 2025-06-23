@@ -137,7 +137,8 @@ load_config <- function(filename = "micnorm.yaml") {
     seminars = seminars,
     mailing = mailing,
     output = output,
-    late_submissions = late_submissions
+    late_submissions = late_submissions,
+    final_date = config$final_date
   )
 }
 
@@ -1177,7 +1178,9 @@ add_output_string <- function(
   students,
   test_points,
   config,
-  written_tests) {
+  written_tests,
+  date
+) {
   if (!is.null(test_points)) {
     students <- dplyr::left_join(
       students,
@@ -1197,11 +1200,37 @@ add_output_string <- function(
   } else {
     config$normalization$seminmax
   }
-  intro = if (written_tests > 0) {
+  intro <- if (written_tests > 0) {
     "Počet normovaných bodů za průběžnou práci v semestru: *"
   } else {
     "Počet normovaných bodů za průběžnou práci na semináři: "
   }
+  intro <- stringr::str_c(
+    "Body za průběžnou práci v BPE_MIE1 / MPE_MIVS\n",
+    "==================================================================\n\n",
+    intro
+  )
+  result_string <- function(all_norm_points) {
+    if (date >= config$final_date) {
+      stringr::str_c(
+        "\n\n",
+        "------------------------------------------------------------------\n",
+        dplyr::if_else(
+          all_norm_points >= config$normalization$needed_points,
+          "Gratuluji! Jste pripuštěn(a) ke zkoušce.\n",
+          stringr::str_c(
+            "Bohužel nejste připuštěn(a) ke zkoušce.   @X\n",
+            "(K připuštění ke zkoušce je potřeba získat aspoň ",
+            config$normalization$needed_points,
+            " bodů.)\n"
+          )
+        )
+      )
+    } else {
+      ""
+    }
+  }
+
   students |>
     dplyr::mutate(
       all_norm_points = if (written_tests >= 0) {
@@ -1259,7 +1288,9 @@ add_output_string <- function(
           stringr::str_c("\n", test_points_string)
         } else {
           ""
-        }
+        },
+        # overall result
+        result_string(all_norm_points)
       )
     )
 }
@@ -1480,7 +1511,8 @@ normalize_micro <- function(
       students,
       test_points,
       config,
-      written_tests = written_tests
+      written_tests = written_tests,
+      date = date
     )
     # create blocks for normalization and write the normalized points to IS
     if (export_to_IS && the$no_of_errors == 0) {
