@@ -1211,23 +1211,25 @@ add_output_string <- function(
     intro
   )
   result_string <- function(all_norm_points) {
+    separ <-
+      "\n\n------------------------------------------------------------------\n"
+    res <- ""
+    if (date > min(config$tests$deadline) && date < config$final_date) {
+      res <- stringr::str_c(
+      )
+    }
     if (date >= config$final_date) {
-      stringr::str_c(
-        "\n\n",
-        "------------------------------------------------------------------\n",
-        dplyr::if_else(
-          all_norm_points >= config$normalization$needed_points,
-          "Gratuluji! Jste pripuštěn(a) ke zkoušce.\n",
-          stringr::str_c(
-            "Bohužel nejste připuštěn(a) ke zkoušce.   @X\n",
-            "(K připuštění ke zkoušce je potřeba získat aspoň ",
-            config$normalization$needed_points,
-            " bodů.)\n"
-          )
+      res <- dplyr::if_else(
+        all_norm_points >= config$normalization$needed_points,
+        "Gratuluji! Jste pripuštěn(a) ke zkoušce.\n",
+        stringr::str_c(
+          "Bohužel nejste připuštěn(a) ke zkoušce.   @X\n",
+          "(K připuštění ke zkoušce je potřeba získat aspoň ",
+          config$normalization$needed_points,
+          " bodů.)\n"
         )
       )
-    } else {
-      ""
+      stringr::str_c(separ, res)
     }
   }
 
