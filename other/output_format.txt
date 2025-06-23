@@ -27,7 +27,7 @@ Počet bodů za TF testy: 12 bodů z 14 možných, tj. 4.3 normovaných bodů (8
 Počet bodů za a/b/c/d testy: 57 bodů z 63 možných, tj. 13.6 normovaných bodů (90.5% z 15 možných).
 Detailní rozpis bodů za jednotlivé testy:
 - test 1 tf: 5 bodů z 6 možných
-- test 1 abcd: 24 bodů z 26 možných
+- test 1 abcd: 0 bodů z 26 možných (nepsal)
 - test 2 tf: 7 bodů z 8 možných
 - test 2A abcd: 23 bodů z 25 možných
 - test 2B abcd: 10 bodů z 12 možných

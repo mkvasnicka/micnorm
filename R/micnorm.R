@@ -573,160 +573,6 @@ get_activity_points <- function(creds, name_mask) {
 
 
 
-# test points -----------------------------------------------------------------
-
-#' Return URL of a test points notebook.
-#'
-#' `test_url()` returns URL of a test points notebook.
-#'
-#' @param type (string) type of the test; one of "abcd" or "tft"
-#' @param test (string) test number including the letter; e.g. "2B"
-#' @param year (string) year of the course; e.g. "2024"
-#' @param course (string) name of the base course; e.g. "BPE_MIE1"
-#'
-#' @return (string) URL of the test points notebook
-#'
-#' @examples \dontrun{
-#' test_url("abcd", "2B", "2024", "BPE_MIE1")
-#' }
-test_url <- function(type, test, year, course) {
-  # /el/econ/podzim2024/BPE_MIE1/odp/tb/prubezabcdtest/prubabcdtest2Bprez.qdesc
-  # /el/econ/podzim2024/BPE_MIE1/odp/tb/prubeztftest/prubtftest2prez.qdesc
-  stringr::str_c(
-    "/el/econ/podzim", year, "/", course, "/odp/tb/",
-    "prubez", type, "test/",
-    "prub", type, "test", stringr::str_to_upper(test), "prez.qdesc"
-  )
-
-}
-
-#' Read test points from a notebook.
-#'
-#' `read_test_points()` reads test points from a notebook.
-#'
-#' @param uco_cred (list) credentials of the user created with
-#'     `MUIS::uco_credentials()`
-#' @param type (string) type of the test; one of "abcd" or "tft"
-#' @param test (string) test number including the letter; e.g. "2B"
-#' @param year (string) year of the course; e.g. "2024"
-#' @param course (string) name of the base course; the default is "BPE_MIE1"
-#'
-#' @return a tibble with columns:
-#' - uco,
-#' - student_name
-#' - points
-#' - time
-#'
-#' @examples \dontrun{
-#' read_test_points(uco_cred, "abcd", "2B", "2024")
-#' }
-read_one_test <- function(uco_cred, type, test, year, course = "BPE_MIE1") {
-  MUIS::get_answers_table(
-    test_url(type, test, year, course),
-    uco_cred
-  )
-}
-
-read_test_points <- function(config, date) {
-  course <- config$credentials[[1]]$course
-  # filter tests that were already taken
-  tests <- dplyr::filter(config$tests, deadline <= date)
-  # read the tests
-  scores <- purrr::pmap(
-    tests,
-    function(name, type, number, points, deadline) {
-      read_one_test(config$uco_credentials, type, name, config$year, course) |>
-        dplyr::mutate(
-          type = type,
-          test = name,
-          test_number = number
-        )
-    }
-  ) |>
-    dplyr::bind_rows() |>
-  # add max scores and deadlines
-    dplyr::left_join(
-      tests |> dplyr::rename(max_points = points),
-      by = c("test" = "name", "type")
-    ) |>
-  # add allowed late submissions
-    dplyr::left_join(
-      config$late_submissions |>
-        dplyr::rename(
-          deadline_extended = deadline,
-          student_name_test = student_name
-        ),
-      by = c("uco", "test_number")
-    ) |>
-    dplyr::mutate(
-      deadline = dplyr::if_else(is.na(deadline_extended), deadline, deadline_extended)
-    ) |>
-  # calculate penalized points
-    dplyr::mutate(
-      late = as.integer(as.Date(time) - deadline),
-      late = dplyr::if_else(late < 0, 0L, late),
-      penalty = late * config$normalization$daily_penalty,
-      penalized_points = points * (1 - penalty / 100)
-    )
-  scores
-}
-
-add_test_points_strings <- function(scores, config) {
-  scores |>
-    dplyr::mutate(
-      s = stringr::str_c(
-        "- test ", test, " ", type, ": ",
-        penalized_points, " bodů z ", max_points, " možných"
-      ),
-      s = dplyr::if_else(
-        late > 0,
-        stringr::str_c(
-          s,
-          " (odevzdáno o ", late, " dní později -- penalizované body)"),
-        s
-      ),
-      tf_points = dplyr::if_else(type == "tf",points, 0L),
-      abcd_points = dplyr::if_else(type == "abcd", points, 0L),
-      tf_max_points = dplyr::if_else(type == "tf", max_points, 0L),
-      abcd_max_points = dplyr::if_else(type == "abcd", max_points, 0L)
-    ) |>
-    dplyr::group_by(uco, student_name) |>
-    dplyr::arrange(test_number, desc(type), test, .by_group = TRUE) |>
-    dplyr::summarize(
-      test_points_string = stringr::str_c(s, collapse = "\n"),
-      tf_points = sum(tf_points, na.rm = TRUE),
-      abcd_points = sum(abcd_points, na.rm = TRUE),
-      tf_max_points = sum(tf_max_points, na.rm = TRUE),
-      abcd_max_points = sum(abcd_max_points, na.rm = TRUE),
-      .groups = "drop"
-    ) |>
-    dplyr::mutate(
-      tf_norm_points = tf_points / tf_max_points * config$normalization$tftestnormmax,
-      abcd_norm_points = abcd_points / abcd_max_points * config$normalization$abcdtestynormmax,
-      test_norm_points = tf_norm_points + abcd_norm_points,
-      test_points_string = stringr::str_c(
-        "Body za jednotlivé testy:\n",
-        test_points_string,
-        "\n\n",
-        "Celkem:\n",
-        "- za tf testy: ", tf_points, " bodů z ", tf_max_points, " možných,",
-        " tj. ", round(tf_norm_points, 1), " normovaných bodů",
-        " (", round(tf_points / tf_max_points * 100, 1), "%",
-        " z ", config$normalization$tftestnormmax, " možných),\n",
-        "- za abcd testy: ", abcd_points, " bodů z ", abcd_max_points,
-        " možných,",
-        " tj. ", round(abcd_norm_points, 1), " normovaných bodů",
-        " (", round(abcd_points / abcd_max_points * 100, 1), "%",
-        " z ", config$normalization$abcdtestynormmax, " možných),\n",
-        "- celkem za testy: ", round(test_norm_points, 1), " normovaných bodů",
-        " z ", config$normalization$tftestnormmax +
-          config$normalization$abcdtestynormmax, " možných\n"
-      )
-    )
-}
-
-
-
 # renegades -------------------------------------------------------------------
 
 #' Get list of students that stopped studying.
@@ -1072,6 +918,238 @@ normalize_points <- function(
 
 
 
+# test points -----------------------------------------------------------------
+
+#' Return URL of a test points notebook.
+#'
+#' `test_url()` returns URL of a test points notebook.
+#'
+#' @param type (string) type of the test; one of "abcd" or "tft"
+#' @param test (string) test number including the letter; e.g. "2B"
+#' @param year (string) year of the course; e.g. "2024"
+#' @param course (string) name of the base course; e.g. "BPE_MIE1"
+#'
+#' @return (string) URL of the test points notebook
+#'
+#' @examples \dontrun{
+#' test_url("abcd", "2B", "2024", "BPE_MIE1")
+#' }
+test_url <- function(type, test, year, course) {
+  # /el/econ/podzim2024/BPE_MIE1/odp/tb/prubezabcdtest/prubabcdtest2Bprez.qdesc
+  # /el/econ/podzim2024/BPE_MIE1/odp/tb/prubeztftest/prubtftest2prez.qdesc
+  stringr::str_c(
+    "/el/econ/podzim", year, "/", course, "/odp/tb/",
+    "prubez", type, "test/",
+    "prub", type, "test", stringr::str_to_upper(test), "prez.qdesc"
+  )
+
+}
+
+#' Read test points from a notebook.
+#'
+#' `read_test_points()` reads test points from a notebook.
+#'
+#' @param uco_cred (list) credentials of the user created with
+#'     `MUIS::uco_credentials()`
+#' @param type (string) type of the test; one of "abcd" or "tft"
+#' @param test (string) test number including the letter; e.g. "2B"
+#' @param year (string) year of the course; e.g. "2024"
+#' @param course (string) name of the base course; the default is "BPE_MIE1"
+#'
+#' @return a tibble with columns:
+#' - uco,
+#' - student_name
+#' - points
+#' - time
+#'
+#' @examples \dontrun{
+#' read_test_points(uco_cred, "abcd", "2B", "2024")
+#' }
+read_one_test <- function(uco_cred, type, test, year, course = "BPE_MIE1") {
+  MUIS::get_answers_table(
+    test_url(type, test, year, course),
+    uco_cred
+  )
+}
+
+read_test_points <- function(config, date) {
+  course <- config$credentials[[1]]$course
+  # filter tests that were already taken
+  tests <- dplyr::filter(config$tests, deadline <= date)
+  # read the tests
+  scores <- purrr::pmap(
+    tests,
+    function(name, type, number, points, deadline) {
+      read_one_test(config$uco_credentials, type, name, config$year, course) |>
+        dplyr::mutate(
+          type = type,
+          test = name,
+          test_number = number
+        )
+    }
+  ) |>
+    dplyr::bind_rows() |>
+  # add max scores and deadlines
+    dplyr::left_join(
+      tests |> dplyr::rename(max_points = points),
+      by = c("test" = "name", "type")
+    ) |>
+  # add allowed late submissions
+    dplyr::left_join(
+      config$late_submissions |>
+        dplyr::rename(
+          deadline_extended = deadline,
+          student_name_test = student_name
+        ),
+      by = c("uco", "test_number")
+    ) |>
+    dplyr::mutate(
+      deadline = dplyr::if_else(is.na(deadline_extended), deadline, deadline_extended)
+    ) |>
+  # calculate penalized points
+    dplyr::mutate(
+      late = as.integer(as.Date(time) - deadline),
+      late = dplyr::if_else(late < 0, 0L, late),
+      penalty = late * config$normalization$daily_penalty,
+      penalized_points = points * (1 - penalty / 100)
+    )
+  scores
+}
+
+read_test_points <- function(config, students, date) {
+  course <- config$credentials[[1]]$course
+  # filter tests that were already taken
+  tests <- dplyr::filter(config$tests, deadline <= date)
+  if (nrow(tests) == 0) {
+    return(NULL)
+  }
+  # read the tests
+  scores <- purrr::pmap(
+    tests,
+    function(name, type, number, points, deadline) {
+      read_one_test(config$uco_credentials, type, name, config$year, course) |>
+        dplyr::mutate(
+          type = type,
+          test = name,
+          test_number = number
+        )
+    }
+  ) |>
+    dplyr::bind_rows()
+  # add max scores and deadlines
+  combinations <- tidyr::expand_grid(
+    uco = students$student_uco,
+    tidyr::nesting(tests)
+  ) |>
+    dplyr::rename(max_points = points)
+  scores <- dplyr::full_join(
+    combinations,  # tests |> dplyr::rename(max_points = points),
+    scores,
+    by = c("uco", "name" = "test", "type")
+  )
+  # add allowed late submissions
+  scores <- dplyr::left_join(
+    scores,
+    config$late_submissions |>
+      dplyr::rename(
+        deadline_extended = deadline,
+        student_name_test = student_name
+      ),
+    by = c("uco", "test_number")
+    ) |>
+    dplyr::mutate(
+      deadline = dplyr::if_else(
+        is.na(deadline_extended),
+        deadline,
+        deadline_extended
+      )
+    )
+  # calculate penalized points
+  scores <- dplyr::mutate(
+    scores,
+    late = as.integer(as.Date(time) - deadline),
+    late = dplyr::if_else(late < 0, 0L, late),
+    penalty = late * config$normalization$daily_penalty,
+    penalized_points = points * (1 - penalty / 100)
+  )
+  # return
+  scores
+}
+
+compute_test_points <- function(scores, config) {
+  number_of_tests <- max(scores$test_number, na.rm = TRUE)
+  scores |>
+    dplyr::mutate(
+      s = stringr::str_c("- test ", name, " ", type, ": "),
+      s = dplyr::if_else(
+        is.na(points),
+        stringr::str_c(s, 0, " z ", max_points,
+        " možných bodů (neodevzdáno/neuloženo)"),
+        stringr::str_c(s, penalized_points, " z ", max_points, " možných bodů")
+      ),
+      s = dplyr::if_else(
+        !is.na(penalized_points) & late > 0,
+        stringr::str_c(
+          s,
+          " (odevzdáno o ", late, " dní později -- penalizované body)"
+        ),
+        s
+      ),
+      tf_points = dplyr::if_else(type == "tf",points, 0L),
+      abcd_points = dplyr::if_else(type == "abcd", points, 0L),
+      tf_max_points = dplyr::if_else(type == "tf", max_points, 0L),
+      abcd_max_points = dplyr::if_else(type == "abcd", max_points, 0L)
+    ) |>
+    dplyr::group_by(uco, student_name) |>
+    dplyr::arrange(test_number, desc(type), name, .by_group = TRUE) |>
+    dplyr::summarize(
+      test_points_string = stringr::str_c(s, collapse = "\n"),
+      tf_points = sum(tf_points, na.rm = TRUE),
+      abcd_points = sum(abcd_points, na.rm = TRUE),
+      tf_max_points = sum(tf_max_points, na.rm = TRUE),
+      abcd_max_points = sum(abcd_max_points, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    dplyr::mutate(
+      tf_norm_points =
+        tf_points / tf_max_points * config$normalization$tftestnormmax,
+      abcd_norm_points =
+        abcd_points / abcd_max_points * config$normalization$abcdtestynormmax,
+      tf_perc = tf_points / tf_max_points * 100,
+      abcd_perc = abcd_points / abcd_max_points * 100,
+      test_norm_points = tf_norm_points + abcd_norm_points,
+      test_points_string = stringr::str_c(
+        "Počet normovaných bodů za průběžné testy: ",
+        round(test_norm_points, 3),
+        " z ",
+        config$normalization$abcdtestynormmax +
+        config$normalization$tftestnormmax,
+        " možných.\n",
+        #
+        "(Normované body za průběžné testy mohou růst i klesat.)\n",
+        #
+        "Počet testů, které proběhly: ", number_of_tests, " z ",
+        max(config$tests$number), " plánovaných.\n",
+        #
+        "Počet bodů za TF testy: ", round(tf_points, 3),
+        " z ", tf_max_points, " možných bodů, tj. ", round(tf_norm_points, 3),
+        " normovaných bodů (", round(tf_perc, 1), "%) z ",
+        config$normalization$tftestnormmax, " možných.\n",
+        #
+        "Počet bodů za a/b/c/d testy: ", round(abcd_points, 3),
+        " z ", abcd_max_points, " možných bodů, tj. ",
+        round(abcd_norm_points, 3),
+        " normovaných bodů (", round(abcd_perc, 1), "%) z ",
+        config$normalization$abcdtestynormmax, " možných.\n",
+        #
+        "Detailní rozpis bodů za jednotlivé testy:\n",
+        test_points_string
+      )
+    )
+}
+
+
+
 # output strings --------------------------------------------------------------
 
 #' Format number.
@@ -1097,22 +1175,58 @@ format_number <- function(x) {
 #' @return a tibble with same columns as students + output_string
 add_output_string <- function(
   students,
-  max_points_attendance,
-  max_points_activity) {
+  test_points,
+  config,
+  written_tests) {
+  if (!is.null(test_points)) {
+    students <- dplyr::left_join(
+      students,
+      test_points |>
+        dplyr::select(
+          student_uco = uco,
+          test_points_string,
+          test_norm_points
+        ),
+      by = "student_uco"
+    )
+  }
+  all_max_points <- if (written_tests > 0) {
+    config$normalization$seminmax +
+      config$normalization$abcdtestynormmax +
+      config$normalization$tftestnormmax
+  } else {
+    config$normalization$seminmax
+  }
+  intro = if (written_tests > 0) {
+    "Počet normovaných bodů za průběžnou práci v semestru: *"
+  } else {
+    "Počet normovaných bodů za průběžnou práci na semináři: "
+  }
   students |>
     dplyr::mutate(
+      all_norm_points = if (written_tests >= 0) {
+        norm_points + normalized_attendance + test_norm_points
+      } else {
+        norm_points + normalized_attendance
+      },
       output_string = stringr::str_c(
         # total points
-        "Počet normovaných bodů za účast a práci na semináři: *",
-        round(norm_points + normalized_attendance),
-        " z ", (max_points_activity + max_points_attendance)," možných.\n",
+        intro,
+        round(all_norm_points),
+        " z ",
+        all_max_points,
+        " možných.\n",
+        "(Tyto normované body mohou růst i klesat.)\n",
         "\n",
-        "Tyto normované body se skládají ze dvou částí:\n",
+        #
+        "Tyto normované body se skládají ze ",
+        if (written_tests >= 0) "tří" else "dvou",
+        " částí:\n",
         "\n",
         #
         # activity
         "Počet normovaných bodů za aktivitu: ", format_number(norm_points), 
-        " z ", max_points_activity, " možných.\n",
+        " z ", config$seminars$max_points_activity, " možných.\n",
         "(Normované body za aktivitu mohou růst i klesat.)\n",
         "Počet hrubých bodů za vyvolání: ",
         format_number(call_up_points), ".\n",
@@ -1134,12 +1248,18 @@ add_output_string <- function(
         # attendance
         "Počet normovaných bodů za účast: ",
         format_number(normalized_attendance),
-        " z ", max_points_attendance, " možných.\n",
+        " z ", config$seminars$max_points_attendance, " možných.\n",
         "(Normované body za účast mohou růst i klesat.)\n",
         "Počet účastí: ", attendance_points, " z ",
         no_of_valid_seminars, " proběhlých seminářů.\n",
         "Účast na semináři: ", attendance_string, "\n",
-        "Počet účastí na náhradním termínu: ", alt_attendance_points, ".\n"
+        "Počet účastí na náhradním termínu: ", alt_attendance_points, ".\n",
+        # test points
+        if (written_tests >= 0) {
+          stringr::str_c("\n", test_points_string)
+        } else {
+          ""
+        }
       )
     )
 }
@@ -1305,24 +1425,13 @@ start_logging <- function(log_folder, norm_block) {
 #
 normalize_micro <- function(
     config_file,
-    # ...,
-    # course_mapping = NULL,
-    # no_of_seminars = 12L,
-    # max_points_attendance = 6,
-    # max_points_activity = 24,
-    # activity_const_a = 20,
-    # activity_const_b = 120,
-    # activity_name_mask = "^bodysemin\\d{2}$",
-    # alt_attendance_notebook = "preznahr",
-    # norm_name = "Normované body za účast a průběžnou práci na semináři",
-    # norm_block = "bodsemin",
-    # log_folder = "logs",
-    # group_file_name = "last_groupings.RData",
-    # sender = "847@muni.cz",
-    # recipient = sender,
     export_to_IS = TRUE,
     send_mail = TRUE) {
+  # load the configuration
   config <- load_config(config_file)
+  # get the current date
+  date <- Sys.Date()
+  # start logging
   log_file <- start_logging(config$output$log_folder, config$output$norm_block)
   try({
     # get renegades (i.e. students that stopped working within the term)
@@ -1357,12 +1466,22 @@ normalize_micro <- function(
         no_of_seminars = config$seminars$no_of_seminars,
         max_points_attendance = config$seminars$max_points_attendance,
         alt_attendance_notebook = config$seminars$alt_attendance_notebook
-      ) |>
-      # add output string
-      add_output_string(
-        max_points_attendance = config$seminars$max_points_attendance,
-        max_points_activity = config$seminars$max_points_activity
       )
+    # get students' test points
+    test_points <- read_test_points(
+      config,
+      students,
+      date
+    )
+    written_tests <- max(test_points$test_number, na.rm = TRUE)
+    test_points <- compute_test_points(test_points, config)
+    # add output string
+    students <- add_output_string(
+      students,
+      test_points,
+      config,
+      written_tests = written_tests
+    )
     # create blocks for normalization and write the normalized points to IS
     if (export_to_IS && the$no_of_errors == 0) {
       write_data_to_is(students, norm_name, norm_block, ...)
