@@ -1023,6 +1023,21 @@ read_test_points <- function(config, students, date) {
   tests <- dplyr::filter(config$tests, deadline <= date)
   if (nrow(tests) == 0) {
     return(NULL)
+    # return(
+    #   tibble::tibble(
+    #     uco = integer(0),
+    #     student_name = character(0),
+    #     points = integer(0),
+    #     time = integer(0),
+    #     type = character(0),
+    #     test = character(0),
+    #     test_number = integer(0),
+    #     deadline_extended = integer(0),
+    #     student_name_test = character(0),
+    #     late = integer(0),
+    #     penalized_points = double(0)
+    #   )
+    # )
   }
   # read the tests
   scores <- purrr::pmap(
@@ -1070,7 +1085,11 @@ read_test_points <- function(config, students, date) {
     scores,
     late = as.integer(as.Date(time) - deadline),
     late = dplyr::if_else(late < 0, 0L, late),
-    penalty = late * config$normalization$daily_penalty,
+    penalty = if_else(late > 0,
+      config$normalization$late_penalty +
+        late * config$normalization$daily_penalty,
+      0L
+    ),
     penalized_points = points * (1 - penalty / 100)
   )
   # return
@@ -1078,6 +1097,9 @@ read_test_points <- function(config, students, date) {
 }
 
 compute_test_points <- function(scores, config) {
+  if (is.null(scores)) {
+    return(NULL)
+  }
   number_of_tests <- max(scores$test_number, na.rm = TRUE)
   scores |>
     dplyr::mutate(
@@ -1235,7 +1257,7 @@ add_output_string <- function(
 
   students |>
     dplyr::mutate(
-      all_norm_points = if (written_tests >= 0) {
+      all_norm_points = if (written_tests > 0) {
         norm_points + normalized_attendance + test_norm_points
       } else {
         norm_points + normalized_attendance
@@ -1286,10 +1308,10 @@ add_output_string <- function(
         "Účast na semináři: ", attendance_string, "\n",
         "Počet účastí na náhradním termínu: ", alt_attendance_points, ".\n",
         # test points
-        if (written_tests >= 0) {
+        if (written_tests > 0) {
           stringr::str_c("\n", test_points_string)
         } else {
-          ""
+          "\nJeště neproběhl žádný test."
         },
         # overall result
         result_string(all_norm_points)
@@ -1506,7 +1528,11 @@ normalize_micro <- function(
       students,
       date
     )
-    written_tests <- max(test_points$test_number, na.rm = TRUE)
+    written_tests <- if (!is.null(test_points)) {
+      max(test_points$test_number, na.rm = TRUE)
+    } else {
+       0L
+    }
     test_points <- compute_test_points(test_points, config)
     # add output string
     students <- add_output_string(
