@@ -6,7 +6,7 @@
 \usage{
 add_attendance(
   tab,
-  ...,
+  creds,
   no_of_seminars,
   max_points_attendance,
   alt_attendance_notebook
@@ -15,8 +15,6 @@ add_attendance(
 \arguments{
 \item{tab}{A tibble containing the input table.}
 
-\item{...}{credentials separated by commas.}
-
 \item{no_of_seminars}{The total number of seminars.}
 
 \item{max_points_attendance}{The maximum points that can be obtained
@@ -24,6 +22,8 @@ for attendance.}
 
 \item{alt_attendance_notebook}{The name of the notebook with an alternative
 attendance.}
+
+\item{...}{credentials separated by commas.}
 }
 \value{
 A tibble containing the input table with attendance data added.

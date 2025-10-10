@@ -4,7 +4,7 @@
 \alias{get_students_attached_to_teachers}
 \title{Get all students and attach them to teachers.}
 \usage{
-get_students_attached_to_teachers(...)
+get_students_attached_to_teachers(creds)
 }
 \arguments{
 \item{...}{credentials}

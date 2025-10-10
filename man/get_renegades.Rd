@@ -4,7 +4,7 @@
 \alias{get_renegades}
 \title{Get list of students that stopped studying.}
 \usage{
-get_renegades(...)
+get_renegades(creds)
 }
 \arguments{
 \item{`...`}{credentials; separated by commas}

@@ -1085,7 +1085,7 @@ read_test_points <- function(config, students, date) {
     scores,
     late = as.integer(as.Date(time) - deadline),
     late = dplyr::if_else(late < 0, 0L, late),
-    penalty = if_else(late > 0,
+    penalty = dplyr::if_else(late > 0,
       config$normalization$late_penalty +
         late * config$normalization$daily_penalty,
       0L

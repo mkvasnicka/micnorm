@@ -4,7 +4,7 @@
 \alias{get_list_of_existing_notebooks}
 \title{Get list of all activity points notebooks.}
 \usage{
-get_list_of_existing_notebooks(..., name_mask = "^bodysemin\\\\d{2}$")
+get_list_of_existing_notebooks(creds, name_mask = "^bodysemin\\\\d{2}$")
 }
 \arguments{
 \item{name_mask}{(string) regular expression that says how are named

@@ -4,20 +4,20 @@
 \alias{get_activity_points}
 \title{Get and process students' activity points.}
 \usage{
-get_activity_points(..., name_mask = "^bodysemin\\\\d{2}$")
+get_activity_points(creds, name_mask)
 }
 \arguments{
-\item{...}{credentials}
-
 \item{name_mask}{(string) regular expression that says how are named
 the notebooks where activity points are stored}
+
+\item{...}{credentials}
 }
 \value{
 tibble with following columns:
 \itemize{
 \item credentials
 \item student_uco
--call_up_points
+\item call_up_points
 \item number_of_non_excused_call_ups
 \item number_of_excused_call_ups
 \item raised_hand_points

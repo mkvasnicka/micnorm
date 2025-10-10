@@ -4,7 +4,7 @@
 \alias{get_all_teachers}
 \title{Get list of all teachers.}
 \usage{
-get_all_teachers(...)
+get_all_teachers(creds)
 }
 \arguments{
 \item{`...`}{credentials; separated by commas}

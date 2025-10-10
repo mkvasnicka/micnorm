@@ -5,7 +5,7 @@
 \title{Get and normalize attendance in several courses.}
 \usage{
 get_attendance(
-  ...,
+  creds,
   no_of_seminars,
   max_points_attendance,
   alt_attendance_notebook

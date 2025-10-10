@@ -4,27 +4,14 @@
 \alias{normalize_micro}
 \title{Read IS notebooks, normalize students' points, and write it back to IS.}
 \usage{
-normalize_micro(
-  ...,
-  course_mapping = NULL,
-  no_of_seminars = 12L,
-  max_points_attendance = 6,
-  max_points_activity = 24,
-  activity_const_a = 20,
-  activity_const_b = 120,
-  activity_name_mask = "^bodysemin\\\\d{2}$",
-  alt_attendance_notebook = "preznahr",
-  norm_name = "Normované body za účast a průběžnou práci na semináři",
-  norm_block = "bodsemin",
-  log_folder = "logs",
-  group_file_name = "last_groupings.RData",
-  sender = "847@muni.cz",
-  recipient = sender,
-  export_to_IS = TRUE,
-  send_mail = TRUE
-)
+normalize_micro(config_file, export_to_IS = TRUE, send_mail = TRUE)
 }
 \arguments{
+\item{export_to_IS}{(optional, logical) whether to export the data to IS;
+implicit value is TRUE}
+
+\item{`...`}{credentials separated by commas}
+
 \item{course_mapping}{(optional, tibble) mapping of courses; must include
 columns: course, source_seminar, and target_seminar}
 
@@ -61,11 +48,6 @@ are written}
 \item{sender}{(optional, string) email address of sender}
 
 \item{recipient}{(optional, string) email address of recipient}
-
-\item{export_to_IS}{(optional, logical) whether to export the data to IS;
-implicit value is TRUE}
-
-\item{`...`}{credentials separated by commas}
 }
 \value{
 (silently) tibble with data created

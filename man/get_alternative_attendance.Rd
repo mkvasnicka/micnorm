@@ -4,13 +4,13 @@
 \alias{get_alternative_attendance}
 \title{Get alternative attendance points from IS.}
 \usage{
-get_alternative_attendance(..., alt_attendance_notebook)
+get_alternative_attendance(creds, alt_attendance_notebook)
 }
 \arguments{
-\item{...}{credentials}
-
 \item{alt_attendance_notebook}{(string) name of the notebook where
 alternative attendance points are stored}
+
+\item{...}{credentials}
 }
 \value{
 a tibble with following columns:
