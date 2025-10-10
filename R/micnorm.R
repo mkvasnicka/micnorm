@@ -973,71 +973,12 @@ read_one_test <- function(uco_cred, type, test, year, course = "BPE_MIE1") {
   )
 }
 
-read_test_points <- function(config, date) {
-  course <- config$credentials[[1]]$course
-  # filter tests that were already taken
-  tests <- dplyr::filter(config$tests, deadline <= date)
-  # read the tests
-  scores <- purrr::pmap(
-    tests,
-    function(name, type, number, points, deadline) {
-      read_one_test(config$uco_credentials, type, name, config$year, course) |>
-        dplyr::mutate(
-          type = type,
-          test = name,
-          test_number = number
-        )
-    }
-  ) |>
-    dplyr::bind_rows() |>
-  # add max scores and deadlines
-    dplyr::left_join(
-      tests |> dplyr::rename(max_points = points),
-      by = c("test" = "name", "type")
-    ) |>
-  # add allowed late submissions
-    dplyr::left_join(
-      config$late_submissions |>
-        dplyr::rename(
-          deadline_extended = deadline,
-          student_name_test = student_name
-        ),
-      by = c("uco", "test_number")
-    ) |>
-    dplyr::mutate(
-      deadline = dplyr::if_else(is.na(deadline_extended), deadline, deadline_extended)
-    ) |>
-  # calculate penalized points
-    dplyr::mutate(
-      late = as.integer(as.Date(time) - deadline),
-      late = dplyr::if_else(late < 0, 0L, late),
-      penalty = late * config$normalization$daily_penalty,
-      penalized_points = points * (1 - penalty / 100)
-    )
-  scores
-}
-
 read_test_points <- function(config, students, date) {
   course <- config$credentials[[1]]$course
   # filter tests that were already taken
   tests <- dplyr::filter(config$tests, deadline <= date)
   if (nrow(tests) == 0) {
     return(NULL)
-    # return(
-    #   tibble::tibble(
-    #     uco = integer(0),
-    #     student_name = character(0),
-    #     points = integer(0),
-    #     time = integer(0),
-    #     type = character(0),
-    #     test = character(0),
-    #     test_number = integer(0),
-    #     deadline_extended = integer(0),
-    #     student_name_test = character(0),
-    #     late = integer(0),
-    #     penalized_points = double(0)
-    #   )
-    # )
   }
   # read the tests
   scores <- purrr::pmap(
