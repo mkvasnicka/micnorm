@@ -1270,11 +1270,10 @@ add_output_string <- function(
 #'
 #' @param name (string) full name of the notebook
 #' @param shortcut (string) shortcut name of the notebook
-#' @param ... credentials
+#' @param creds ... list of credentials
 #'
 #' @return none, it only creates the blocks in IS
-safely_create_normalized_block <- function(name, shortcut, ...) {
-  creds <- list(...)
+safely_create_normalized_block <- function(name, shortcut, creds) {
   logging::loginfo(
     "Creating normalization block for %s courses.",
     length(creds)
@@ -1314,7 +1313,7 @@ write_data_to_is <- function(students, norm_name, norm_block, creds) {
     "Trying to write normalized points for %s courses to IS.",
     length(creds)
   )
-  safely_create_normalized_block(norm_name, norm_block, ...)
+  safely_create_normalized_block(norm_name, norm_block, creds)
   purrr::walk(
     creds,
     function(c) {
@@ -1486,8 +1485,8 @@ normalize_micro <- function(
     if (export_to_IS && the$no_of_errors == 0) {
       write_data_to_is(
         students,
-        norm_name,
-        norm_block,
+        config$norm_name,
+        config$norm_block,
         config$notebook_credentials
       )
     }
@@ -1500,7 +1499,11 @@ normalize_micro <- function(
   )
   # send mail
   if (send_mail) {
-    create_and_send_mail(sender, recipient, log_file)
+    create_and_send_mail(
+      config$mailing$sender,
+      config$mailing$recipient,
+      log_file
+    )
   }
   # return invisibly
   invisible(students)
