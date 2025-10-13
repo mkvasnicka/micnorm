@@ -1304,13 +1304,12 @@ safely_create_normalized_block <- function(name, shortcut, ...) {
 #' @param students ... a tibble with points
 #' @param norm_name ... (string) full name of the block
 #' @param norm_block ... (string) shortcut name of the block
-#' @param ... credentials separated by commas
+#' @param creds ... list of credentials
 #'
 #' @return none, it only writes the data to the blocks in IS
 #'
 #' @details if the notebooks don't exist, it creates them
-write_data_to_is <- function(students, norm_name, norm_block, ...) {
-  creds <- list(...)
+write_data_to_is <- function(students, norm_name, norm_block, creds) {
   logging::loginfo(
     "Trying to write normalized points for %s courses to IS.",
     length(creds)
@@ -1485,7 +1484,12 @@ normalize_micro <- function(
     )
     # create blocks for normalization and write the normalized points to IS
     if (export_to_IS && the$no_of_errors == 0) {
-      write_data_to_is(students, norm_name, norm_block, ...)
+      write_data_to_is(
+        students,
+        norm_name,
+        norm_block,
+        config$notebook_credentials
+      )
     }
   })
   # log the end
