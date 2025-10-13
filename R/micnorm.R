@@ -1485,9 +1485,9 @@ normalize_micro <- function(
     if (export_to_IS && the$no_of_errors == 0) {
       write_data_to_is(
         students,
-        config$norm_name,
-        config$norm_block,
-        config$notebook_credentials
+        config$output$norm_name,
+        config$output$norm_block,
+        config$credentials
       )
     }
   })
