@@ -1031,6 +1031,8 @@ read_test_points <- function(config, students, date) {
         late * config$normalization$daily_penalty,
       0L
     ),
+    penalty = pmin(penalty, 100),
+    penalty = dplyr::if_else(is.na(penalty), 0L, penalty),
     penalized_points = points * (1 - penalty / 100)
   )
   # return
@@ -1059,12 +1061,12 @@ compute_test_points <- function(scores, config) {
         ),
         s
       ),
-      tf_points = dplyr::if_else(type == "tf",points, 0L),
+      tf_points = dplyr::if_else(type == "tf", points, 0L),
       abcd_points = dplyr::if_else(type == "abcd", points, 0L),
       tf_max_points = dplyr::if_else(type == "tf", max_points, 0L),
       abcd_max_points = dplyr::if_else(type == "abcd", max_points, 0L)
     ) |>
-    dplyr::group_by(uco, student_name) |>
+    dplyr::group_by(uco) |>
     dplyr::arrange(test_number, desc(type), name, .by_group = TRUE) |>
     dplyr::summarize(
       test_points_string = stringr::str_c(s, collapse = "\n"),
