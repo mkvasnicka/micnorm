@@ -1198,7 +1198,7 @@ add_output_string <- function(
         stringr::str_c(
           "\n\nGrace body: ",
           config$normalization$grace_points,
-          ". (Maximální počet normovaných bodů je stále omezen na ",
+          ".\n(Maximální počet normovaných bodů je omezen na ",
           all_max_points,
           ".)"
         )
