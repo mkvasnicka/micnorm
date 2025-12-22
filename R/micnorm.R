@@ -1185,7 +1185,7 @@ add_output_string <- function(
     }
     if (date >= config$final_date) {
       res <- dplyr::if_else(
-        all_norm_points >= config$normalization$needed_points,
+        round(all_norm_points) >= config$normalization$needed_points,
         "Gratuluji! Jste pripuštěn(a) ke zkoušce.\n",
         stringr::str_c(
           "Bohužel nejste připuštěn(a) ke zkoušce.   @X\n",
