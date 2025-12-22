@@ -1196,7 +1196,11 @@ add_output_string <- function(
       )
       grace_string <- if (config$normalization$grace_points > 0) {
         stringr::str_c(
-          "\n\nGrace body: ", config$normalization$grace_points, ".\n"
+          "\n\nGrace body: ",
+          config$normalization$grace_points,
+          ". (Maximální počet normovaných bodů je však omezen na ",
+          all_max_points,
+          ".)"
         )
       } else {
         ""
