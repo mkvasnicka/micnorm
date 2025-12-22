@@ -1194,7 +1194,14 @@ add_output_string <- function(
           " bodů.)\n"
         )
       )
-      stringr::str_c(separ, res)
+      grace_string <- if (config$normalization$grace_points > 0) {
+        stringr::str_c(
+          "\n Grace body: ", config$normalization$grace_points, ".\n"
+        )
+      } else {
+        ""
+      }
+      stringr::str_c(grace_string, separ, res)
     }
   }
 
@@ -1205,6 +1212,14 @@ add_output_string <- function(
       } else {
         norm_points + normalized_attendance
       },
+      all_norm_points = dplyr::if_else(
+        date >= config$final_date,
+        pmin(
+          all_norm_points + config$normalization$grace_points,
+          all_max_points
+        ),
+        all_norm_points
+      ),
       output_string = stringr::str_c(
         # total points
         intro,
