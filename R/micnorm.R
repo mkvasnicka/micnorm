@@ -1212,14 +1212,14 @@ add_output_string <- function(
       } else {
         norm_points + normalized_attendance
       },
-      all_norm_points = dplyr::if_else(
-        date >= config$final_date,
+      all_norm_points = if (date >= config$final_date) {
         pmin(
           all_norm_points + config$normalization$grace_points,
           all_max_points
-        ),
+        )
+      } else {
         all_norm_points
-      ),
+      },
       output_string = stringr::str_c(
         # total points
         intro,
