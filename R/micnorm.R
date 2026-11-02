@@ -126,6 +126,8 @@ load_config <- function(filename = "micnorm.yaml") {
   # allowed late submissions
   late_submissions <- splice(config$late_submissions) |>
     dplyr::mutate(deadline = as.Date(deadline))
+  # seminars with alternative attendance points
+  alt_attendance_seminars <- splice(config$alt_attendance_seminars)
   # return
   list(
     year = config$year,
@@ -138,7 +140,8 @@ load_config <- function(filename = "micnorm.yaml") {
     mailing = mailing,
     output = output,
     late_submissions = late_submissions,
-    final_date = config$final_date
+    final_date = config$final_date,
+    alt_attendance_seminars = alt_attendance_seminars
   )
 }
 
@@ -735,6 +738,37 @@ get_alternative_attendance <- function(creds, alt_attendance_notebook) {
     )
 }
 
+#' Get general alternative attendance points.
+#'
+#' This function increments alt_attendance_points by 1 for all studens of
+#' seminars that are listed in config$alt_attendance_seminars.
+#' 
+#' @param data A tibble with the data to which alternative attendance
+#' points will be added.
+#'
+#' @return A tibble with alternative attendance points.
+get_alternative_attendance_general <- function(data) {
+  alt <- dplyr::mutate(
+    config$alt_attendance_seminars,
+    .alt_attendance_points = 1L
+  )
+  dplyr::left_join(
+    data,
+    alt,
+    by = c("course", "seminar")
+  ) |>
+    dplyr::mutate(
+      .alt_attendance_points = dplyr::if_else(
+        is.na(.alt_attendance_points),
+        0L,
+        .alt_attendance_points
+      ),
+      alt_attendance_points = alt_attendance_points + .alt_attendance_points
+    ) |>
+    dplyr::select(-.alt_attendance_points)
+}
+
+
 #' Get and normalize attendance in several courses.
 #'
 #' @param ... credentials separated by commas
@@ -759,6 +793,7 @@ get_attendance <- function(
     dplyr::bind_rows() |>
     dplyr::rename(student_uco = uco) |>
     dplyr::left_join(alt, by = c("course", "student_uco")) |>
+    get_alternative_attendance_general() |>
     dplyr::select(
       course,
       student_uco,
