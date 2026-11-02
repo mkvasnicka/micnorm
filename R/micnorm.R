@@ -791,7 +791,6 @@ get_attendance <- function(
     dplyr::bind_rows() |>
     dplyr::rename(student_uco = uco) |>
     dplyr::left_join(alt, by = c("course", "student_uco")) |>
-    get_alternative_attendance_general(alt_attendance_seminars) |>
     dplyr::select(
       course,
       student_uco,
@@ -835,6 +834,7 @@ add_attendance <- function(
       dplyr::select(-course),
     by = c("credentials", "student_uco")
   ) |>
+    get_alternative_attendance_general(alt_attendance_seminars) |>
     dplyr::mutate(
       attendance_points = dplyr::if_else(
         is.na(attendance_points),
