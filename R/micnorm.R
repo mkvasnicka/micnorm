@@ -747,11 +747,8 @@ get_alternative_attendance <- function(creds, alt_attendance_notebook) {
 #' points will be added.
 #'
 #' @return A tibble with alternative attendance points.
-get_alternative_attendance_general <- function(data) {
-  alt <- dplyr::mutate(
-    config$alt_attendance_seminars,
-    .alt_attendance_points = 1L
-  )
+get_alternative_attendance_general <- function(data, alt_attendance_seminars) {
+  alt <- dplyr::mutate(alt_attendance_seminars, .alt_attendance_points = 1L)
   dplyr::left_join(
     data,
     alt,
@@ -784,7 +781,8 @@ get_attendance <- function(
     creds,
     no_of_seminars,
     max_points_attendance,
-    alt_attendance_notebook) {
+    alt_attendance_notebook,
+    alt_attendance_seminars) {
   alt <- get_alternative_attendance(
     creds,
     alt_attendance_notebook = alt_attendance_notebook
@@ -793,7 +791,7 @@ get_attendance <- function(
     dplyr::bind_rows() |>
     dplyr::rename(student_uco = uco) |>
     dplyr::left_join(alt, by = c("course", "student_uco")) |>
-    get_alternative_attendance_general() |>
+    get_alternative_attendance_general(alt_attendance_seminars) |>
     dplyr::select(
       course,
       student_uco,
@@ -822,7 +820,8 @@ add_attendance <- function(
     creds,
     no_of_seminars,
     max_points_attendance,
-    alt_attendance_notebook) {
+    alt_attendance_notebook,
+    alt_attendance_seminars) {
   no_of_valid_seminars <- tab$no_of_valid_seminars[1]
   dplyr::left_join(
     tab,
@@ -830,7 +829,8 @@ add_attendance <- function(
       creds,
       no_of_seminars = no_of_valid_seminars, # no_of_seminars,
       max_points_attendance = max_points_attendance,
-      alt_attendance_notebook = alt_attendance_notebook
+      alt_attendance_notebook = alt_attendance_notebook,
+      alt_attendance_seminars = alt_attendance_seminars
     ) |>
       dplyr::select(-course),
     by = c("credentials", "student_uco")
@@ -1496,7 +1496,8 @@ normalize_micro <- function(
         config$credentials,
         no_of_seminars = config$seminars$no_of_seminars,
         max_points_attendance = config$seminars$max_points_attendance,
-        alt_attendance_notebook = config$seminars$alt_attendance_notebook
+        alt_attendance_notebook = config$seminars$alt_attendance_notebook,
+        alt_attendance_seminars = config$alt_attendance_seminars
       )
     # get students' test points
     test_points <- read_test_points(
