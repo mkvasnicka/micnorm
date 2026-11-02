@@ -781,8 +781,7 @@ get_attendance <- function(
     creds,
     no_of_seminars,
     max_points_attendance,
-    alt_attendance_notebook,
-    alt_attendance_seminars) {
+    alt_attendance_notebook) {
   alt <- get_alternative_attendance(
     creds,
     alt_attendance_notebook = alt_attendance_notebook
